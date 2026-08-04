@@ -44,7 +44,7 @@ function TabBar({ tab, onChange }: { tab: Tab; onChange: (t: Tab) => void }) {
   const { count } = useFavorites();
   return (
     <View style={styles.tabBar}>
-      <TabItem label="Suche" icon="🔍" active={tab === "search"} onPress={() => onChange("search")} />
+      <TabItem label="Suche" icon="⌕" active={tab === "search"} onPress={() => onChange("search")} />
       <TabItem
         label="Merkliste"
         icon="♥"
@@ -70,7 +70,12 @@ function TabItem({
   onPress: () => void;
 }) {
   return (
-    <Pressable style={styles.tabItem} onPress={onPress} accessibilityRole="button" accessibilityState={{ selected: active }}>
+    <Pressable
+      style={styles.tabItem}
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityState={{ selected: active }}
+    >
       <View>
         <Text style={[styles.tabIcon, active && styles.tabActive]}>{icon}</Text>
         {badge ? (
@@ -85,30 +90,36 @@ function TabItem({
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: theme.colors.primary },
-  shell: { flex: 1, backgroundColor: theme.colors.background },
+  safe: { flex: 1, backgroundColor: theme.colors.bg },
+  shell: { flex: 1, backgroundColor: theme.colors.bg },
   screen: { flex: 1 },
   tabBar: {
     flexDirection: "row",
     borderTopWidth: 1,
-    borderTopColor: theme.colors.border,
-    backgroundColor: theme.colors.surface,
+    borderTopColor: theme.colors.hairline,
+    backgroundColor: theme.colors.bg,
   },
-  tabItem: { flex: 1, alignItems: "center", paddingVertical: theme.spacing(2) },
-  tabIcon: { fontSize: 20, color: theme.colors.textMuted, textAlign: "center" },
-  tabLabel: { fontSize: 12, color: theme.colors.textMuted, marginTop: 2 },
-  tabActive: { color: theme.colors.primary },
+  tabItem: { flex: 1, alignItems: "center", paddingTop: theme.spacing(3), paddingBottom: theme.spacing(2.5) },
+  tabIcon: { fontSize: 19, color: theme.colors.textFaint, textAlign: "center" },
+  tabLabel: {
+    fontSize: 10,
+    letterSpacing: 1.4,
+    textTransform: "uppercase",
+    color: theme.colors.textFaint,
+    marginTop: 3,
+  },
+  tabActive: { color: theme.colors.gold },
   badge: {
     position: "absolute",
-    top: -4,
-    right: -12,
-    minWidth: 18,
-    height: 18,
+    top: -6,
+    right: -14,
+    minWidth: 17,
+    height: 17,
     borderRadius: 9,
     paddingHorizontal: 4,
-    backgroundColor: theme.colors.danger,
+    backgroundColor: theme.colors.gold,
     alignItems: "center",
     justifyContent: "center",
   },
-  badgeText: { color: "#fff", fontSize: 10, fontWeight: "700" },
+  badgeText: { color: theme.colors.onGold, fontSize: 10, fontWeight: "800" },
 });

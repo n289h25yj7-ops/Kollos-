@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import { theme } from "../theme";
 
-/** Sucheingabe mit Button. Loest die Suche beim Absenden aus. */
+/** Sucheingabe als edle, dunkle Pill mit Lupen-Glyph und Gold-Button. */
 export function SearchBar({
   initialValue = "",
   onSubmit,
@@ -11,6 +11,7 @@ export function SearchBar({
   onSubmit: (term: string) => void;
 }) {
   const [value, setValue] = useState(initialValue);
+  const [focused, setFocused] = useState(false);
 
   const submit = () => {
     const trimmed = value.trim();
@@ -18,50 +19,54 @@ export function SearchBar({
   };
 
   return (
-    <View style={styles.row}>
-      <TextInput
-        style={styles.input}
-        value={value}
-        onChangeText={setValue}
-        placeholder="Was suchst du? z. B. iPhone 12, Rennrad …"
-        placeholderTextColor={theme.colors.textMuted}
-        returnKeyType="search"
-        onSubmitEditing={submit}
-        autoCorrect={false}
-        autoCapitalize="none"
-      />
-      <Pressable style={styles.button} onPress={submit} accessibilityRole="button">
-        <Text style={styles.buttonText}>Suchen</Text>
-      </Pressable>
+    <View style={styles.wrap}>
+      <View style={[styles.field, focused && styles.fieldFocused]}>
+        <Text style={styles.glass}>⌕</Text>
+        <TextInput
+          style={styles.input}
+          value={value}
+          onChangeText={setValue}
+          placeholder="Was suchst du? z. B. iPhone 12 …"
+          placeholderTextColor={theme.colors.textFaint}
+          returnKeyType="search"
+          onSubmitEditing={submit}
+          onFocus={() => setFocused(true)}
+          onBlur={() => setFocused(false)}
+          autoCorrect={false}
+          autoCapitalize="none"
+        />
+        <Pressable style={styles.button} onPress={submit} accessibilityRole="button">
+          <Text style={styles.buttonText}>Suchen</Text>
+        </Pressable>
+      </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  row: {
+  wrap: { paddingHorizontal: theme.spacing(4), paddingTop: theme.spacing(4) },
+  field: {
     flexDirection: "row",
+    alignItems: "center",
     gap: theme.spacing(2),
-    paddingHorizontal: theme.spacing(4),
-    paddingVertical: theme.spacing(3),
-  },
-  input: {
-    flex: 1,
-    height: 44,
-    borderRadius: theme.radius,
+    height: 50,
+    borderRadius: 14,
     borderWidth: 1,
-    borderColor: theme.colors.border,
-    backgroundColor: theme.colors.surface,
-    paddingHorizontal: theme.spacing(3),
-    color: theme.colors.text,
-    fontSize: 15,
+    borderColor: theme.colors.hairline,
+    backgroundColor: theme.colors.surface2,
+    paddingLeft: theme.spacing(3.5),
+    paddingRight: theme.spacing(1.5),
   },
+  fieldFocused: { borderColor: theme.colors.gold },
+  glass: { color: theme.colors.textMuted, fontSize: 20, marginTop: -2 },
+  input: { flex: 1, color: theme.colors.text, fontSize: 15, height: "100%" },
   button: {
-    height: 44,
+    height: 40,
     paddingHorizontal: theme.spacing(4),
-    borderRadius: theme.radius,
-    backgroundColor: theme.colors.primary,
+    borderRadius: 11,
+    backgroundColor: theme.colors.gold,
     alignItems: "center",
     justifyContent: "center",
   },
-  buttonText: { color: "#fff", fontWeight: "700", fontSize: 15 },
+  buttonText: { color: theme.colors.onGold, fontWeight: "700", fontSize: 14 },
 });

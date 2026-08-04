@@ -3,7 +3,7 @@ import type { Listing } from "../types";
 import { useFavorites } from "../favorites/FavoritesContext";
 import { theme } from "../theme";
 
-/** Herz-Button zum Merken/Entfernen eines Inserats. */
+/** Herz-Button zum Merken/Entfernen. Aktiv = Champagner-Gold. */
 export function FavoriteButton({
   listing,
   size = 22,
@@ -32,6 +32,6 @@ export function FavoriteButton({
 
 const styles = StyleSheet.create({
   button: { padding: 4 },
-  heart: { color: theme.colors.textMuted },
-  heartActive: { color: theme.colors.danger },
+  heart: { color: theme.colors.textFaint },
+  heartActive: { color: theme.colors.gold },
 });

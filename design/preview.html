@@ -1,0 +1,548 @@
+<title>Gebraucht-Radar – interaktive Vorschau</title>
+<style>
+  :root {
+    color-scheme: dark;
+    --bg: #0b0b0d;
+    --surface: #151418;
+    --surface-2: #1c1b21;
+    --surface-3: #232128;
+    --hairline: rgba(255,255,255,.09);
+    --hairline-strong: rgba(255,255,255,.17);
+    --text: #f4f2ee;
+    --muted: #9d9aa4;
+    --muted-2: #6f6d78;
+    --gold: #c9a86a;
+    --gold-bright: #e6cf9c;
+    --gold-dim: rgba(201,168,106,.14);
+    --sage: #8fbf9f;
+
+    --dot-demo: #8b8a94;
+    --dot-klein: #7fae8f;
+    --dot-markt: #8098c9;
+
+    --stage-glow: rgba(201,168,106,.10);
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    color: var(--text);
+    background:
+      radial-gradient(80% 55% at 50% 8%, var(--stage-glow) 0%, transparent 60%),
+      radial-gradient(120% 120% at 50% 100%, #101013 0%, #050506 70%);
+    background-color: #050506;
+    min-height: 100vh;
+    display: flex; flex-direction: column; align-items: center;
+    padding: clamp(18px, 4vw, 44px) 16px 52px;
+    gap: 22px;
+  }
+
+  /* ---------- Chrome um das Telefon ---------- */
+  .intro { text-align: center; max-width: 460px; }
+  .wordmark {
+    font-family: Georgia, "Iowan Old Style", "Times New Roman", serif;
+    text-transform: uppercase; letter-spacing: .34em; font-size: 15px; font-weight: 500;
+    color: var(--text); padding-left: .34em;
+  }
+  .wordmark .dot { color: var(--gold); }
+  .intro p { margin: 12px 0 0; font-size: 13.5px; line-height: 1.55; color: var(--muted); }
+  .legend {
+    display: flex; flex-wrap: wrap; gap: 8px 8px; justify-content: center; margin-top: 16px;
+  }
+  .legend span {
+    display: inline-flex; align-items: center; gap: 6px; font-size: 11.5px; color: var(--muted);
+    border: 1px solid var(--hairline); border-radius: 999px; padding: 5px 11px;
+  }
+  .legend b { color: var(--text); font-weight: 600; }
+
+  /* ---------- Telefon ---------- */
+  .phone {
+    width: 100%; max-width: 398px; height: min(84vh, 838px);
+    background: #000; border-radius: 46px; padding: 11px;
+    box-shadow: 0 40px 90px -30px rgba(0,0,0,.85), 0 0 0 1px rgba(255,255,255,.06), 0 0 0 6px #0a0a0c;
+    flex-shrink: 0;
+  }
+  .screen {
+    position: relative; height: 100%; background: var(--bg);
+    border-radius: 36px; overflow: hidden; display: flex; flex-direction: column;
+  }
+
+  /* ---------- Kopfbereich ---------- */
+  .topbar {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 18px 18px 14px; flex-shrink: 0;
+    border-bottom: 1px solid var(--hairline);
+    background: linear-gradient(180deg, rgba(255,255,255,.02), transparent);
+  }
+  .topbar .mark {
+    font-family: Georgia, "Iowan Old Style", "Times New Roman", serif;
+    text-transform: uppercase; letter-spacing: .26em; font-size: 13px; font-weight: 500; padding-left: .26em;
+  }
+  .topbar .mark .dot { color: var(--gold); }
+  .topbar .ctx { font-size: 11px; letter-spacing: .16em; text-transform: uppercase; color: var(--muted-2); }
+  .topbar .clear { font-size: 12px; color: var(--gold); cursor: pointer; letter-spacing: .02em; }
+
+  .controls { padding: 16px 16px 6px; flex-shrink: 0; }
+  .searchbar {
+    display: flex; align-items: center; gap: 8px;
+    background: var(--surface-2); border: 1px solid var(--hairline);
+    border-radius: 14px; padding: 5px 5px 5px 14px;
+    transition: border-color .15s ease, box-shadow .15s ease;
+  }
+  .searchbar.focus { border-color: var(--gold); box-shadow: 0 0 0 3px var(--gold-dim); }
+  .searchbar .glass { color: var(--muted); font-size: 15px; }
+  .searchbar input {
+    flex: 1; border: 0; background: none; color: var(--text); font-size: 15px;
+    height: 40px; font-family: inherit; outline: none; min-width: 0;
+  }
+  .searchbar input::placeholder { color: var(--muted-2); }
+  .searchbar button {
+    border: 0; background: var(--gold); color: #17140c; font-weight: 700; font-size: 14px;
+    height: 40px; padding: 0 18px; border-radius: 11px; cursor: pointer; font-family: inherit;
+    letter-spacing: .01em; transition: background .15s ease;
+  }
+  .searchbar button:hover { background: var(--gold-bright); }
+
+  .sorts { display: flex; align-items: center; gap: 8px; padding: 14px 16px 4px; }
+  .sorts .lbl { font-size: 10.5px; letter-spacing: .18em; text-transform: uppercase; color: var(--muted-2); margin-right: 2px; }
+  .sort-chip {
+    padding: 7px 13px; border-radius: 999px; border: 1px solid var(--hairline);
+    background: transparent; color: var(--muted); font-size: 12.5px; font-weight: 600; cursor: pointer;
+    font-family: inherit; transition: all .15s ease;
+  }
+  .sort-chip:hover { border-color: var(--hairline-strong); color: var(--text); }
+  .sort-chip.active { background: var(--gold-dim); border-color: rgba(201,168,106,.55); color: var(--gold-bright); }
+
+  .status { padding: 12px 18px 2px; font-size: 12px; letter-spacing: .04em; color: var(--muted-2); flex-shrink: 0; }
+  .status b { color: var(--muted); font-weight: 600; }
+
+  /* ---------- Liste ---------- */
+  .list { flex: 1; overflow-y: auto; padding: 6px 0 16px; -webkit-overflow-scrolling: touch; }
+  .card {
+    display: flex; gap: 12px; background: var(--surface); border: 1px solid var(--hairline);
+    border-radius: 16px; margin: 0 16px 10px; padding: 10px; cursor: pointer;
+    transition: transform .16s ease, border-color .16s ease, background .16s ease;
+  }
+  .card:hover { transform: translateY(-2px); border-color: var(--hairline-strong); background: var(--surface-2); }
+  .card:active { transform: translateY(0); }
+  .thumb {
+    width: 92px; height: 92px; flex-shrink: 0; border-radius: 12px; border: 1px solid var(--hairline);
+    display: flex; align-items: center; justify-content: center; font-size: 36px;
+    background:
+      radial-gradient(circle at 32% 26%, rgba(201,168,106,.12), transparent 62%),
+      linear-gradient(162deg, #211f27 0%, #131218 100%);
+  }
+  .thumb span { filter: saturate(.85); opacity: .95; }
+  .card-body { flex: 1; min-width: 0; padding: 2px 2px 2px 0; display: flex; flex-direction: column; }
+  .card-top { display: flex; align-items: flex-start; gap: 8px; }
+  .card-title {
+    flex: 1; font-size: 14.5px; font-weight: 600; color: var(--text); line-height: 1.3; letter-spacing: .005em;
+    display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+  }
+  .price { margin-top: 7px; font-size: 17px; font-weight: 700; color: var(--text); font-variant-numeric: tabular-nums; letter-spacing: .01em; }
+  .price.free { color: var(--sage); font-size: 15px; }
+  .meta-row { display: flex; align-items: center; gap: 9px; margin-top: auto; padding-top: 9px; }
+  .chip {
+    display: inline-flex; align-items: center; gap: 5px; font-size: 11px; color: var(--muted);
+    border: 1px solid var(--hairline); border-radius: 999px; padding: 3px 8px; letter-spacing: .02em;
+  }
+  .chip .d { width: 6px; height: 6px; border-radius: 50%; }
+  .meta-text { color: var(--muted-2); font-size: 11.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+  .heart { border: 0; background: none; cursor: pointer; font-size: 21px; line-height: 1; color: var(--muted-2); padding: 2px; transition: color .15s ease, transform .12s ease; }
+  .heart:hover { color: var(--muted); }
+  .heart:active { transform: scale(1.25); }
+  .heart.on { color: var(--gold); }
+
+  /* ---------- Leerzustand ---------- */
+  .center { height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 28px; text-align: center; }
+  .center .emoji { font-size: 40px; opacity: .5; margin-bottom: 16px; }
+  .center p { color: var(--muted); font-size: 14.5px; line-height: 1.55; margin: 0; }
+  .suggest-lbl { font-size: 10.5px; letter-spacing: .2em; text-transform: uppercase; color: var(--muted-2); margin: 22px 0 12px; }
+  .suggestions { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; }
+  .suggestions button {
+    border: 1px solid var(--hairline); background: var(--surface); color: var(--text);
+    border-radius: 999px; padding: 8px 15px; font-size: 12.5px; font-weight: 500; cursor: pointer; font-family: inherit;
+    transition: all .15s ease;
+  }
+  .suggestions button:hover { border-color: var(--gold); color: var(--gold-bright); }
+
+  /* ---------- Tab-Leiste ---------- */
+  .tabbar { display: flex; border-top: 1px solid var(--hairline); background: rgba(10,10,12,.85); flex-shrink: 0; padding-bottom: 4px; }
+  .tab { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 12px 0 10px; cursor: pointer; border: 0; background: none; font-family: inherit; }
+  .tab .ic { font-size: 18px; color: var(--muted-2); position: relative; transition: color .15s ease; }
+  .tab .lbl { font-size: 10px; letter-spacing: .14em; text-transform: uppercase; color: var(--muted-2); transition: color .15s ease; }
+  .tab.active .ic, .tab.active .lbl { color: var(--gold); }
+  .tab .count {
+    position: absolute; top: -6px; right: -14px; min-width: 17px; height: 17px; padding: 0 4px;
+    border-radius: 9px; background: var(--gold); color: #17140c; font-size: 10px; font-weight: 800;
+    display: flex; align-items: center; justify-content: center; font-variant-numeric: tabular-nums;
+  }
+
+  /* ---------- Detail ---------- */
+  .detail {
+    position: absolute; inset: 0; background: var(--bg); z-index: 5; display: flex; flex-direction: column;
+    transform: translateY(100%); transition: transform .32s cubic-bezier(.32,.72,0,1);
+  }
+  .detail.open { transform: translateY(0); }
+  .detail-hero { position: relative; height: 264px; flex-shrink: 0; display: flex; align-items: center; justify-content: center;
+    background:
+      radial-gradient(circle at 50% 34%, rgba(201,168,106,.16), transparent 60%),
+      linear-gradient(168deg, #23212a 0%, #0f0e13 100%);
+  }
+  .detail-hero .big { font-size: 96px; filter: saturate(.85); opacity: .96; }
+  .detail-hero::after { content: ""; position: absolute; inset: 0; background: linear-gradient(180deg, rgba(11,11,13,.35) 0%, transparent 26%, transparent 72%, var(--bg) 100%); }
+  .detail-float {
+    position: absolute; top: 16px; left: 16px; right: 16px; display: flex; justify-content: space-between; z-index: 2;
+  }
+  .round-btn {
+    width: 38px; height: 38px; border-radius: 50%; border: 1px solid var(--hairline);
+    background: rgba(10,10,12,.6); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+    color: var(--text); font-size: 18px; cursor: pointer; display: flex; align-items: center; justify-content: center; font-family: inherit;
+  }
+  .round-btn.on { color: var(--gold); }
+  .detail-scroll { flex: 1; overflow-y: auto; }
+  .detail-content { padding: 6px 20px 20px; }
+  .detail-source { display: inline-flex; align-items: center; gap: 6px; font-size: 11px; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); border: 1px solid var(--hairline); border-radius: 999px; padding: 4px 10px; }
+  .detail-source .d { width: 6px; height: 6px; border-radius: 50%; }
+  .detail-title { font-size: 21px; font-weight: 650; color: var(--text); margin: 14px 0 0; line-height: 1.25; letter-spacing: .005em; }
+  .detail-price { font-size: 27px; font-weight: 750; color: var(--text); margin-top: 10px; font-variant-numeric: tabular-nums; letter-spacing: .01em; }
+  .detail-price.free { color: var(--sage); }
+  .kv { margin-top: 20px; }
+  .kv .row { display: flex; justify-content: space-between; padding: 13px 0; border-bottom: 1px solid var(--hairline); }
+  .kv .row:first-child { border-top: 1px solid var(--hairline); }
+  .kv .k { color: var(--muted-2); font-size: 13px; letter-spacing: .04em; }
+  .kv .v { color: var(--text); font-size: 13.5px; font-weight: 600; }
+  .detail-section { margin-top: 24px; font-size: 11px; letter-spacing: .18em; text-transform: uppercase; color: var(--muted-2); }
+  .detail-desc { margin-top: 10px; color: #cfccc4; font-size: 14.5px; line-height: 1.6; }
+  .detail-footer { padding: 16px 20px 20px; border-top: 1px solid var(--hairline); background: linear-gradient(180deg, transparent, rgba(255,255,255,.02)); }
+  .cta { width: 100%; height: 52px; border: 0; border-radius: 14px; background: var(--gold); color: #17140c; font-size: 15px; font-weight: 700; cursor: pointer; font-family: inherit; letter-spacing: .02em; transition: background .15s ease; }
+  .cta:hover { background: var(--gold-bright); }
+
+  .demo-note { font-size: 11px; color: var(--muted-2); text-align: center; max-width: 440px; line-height: 1.6; letter-spacing: .02em; }
+  .demo-note code { background: rgba(255,255,255,.06); padding: 1px 6px; border-radius: 5px; color: var(--muted); }
+
+  ::-webkit-scrollbar { width: 0; height: 0; }
+
+  @media (prefers-reduced-motion: reduce) {
+    .detail, .card, .heart, .sort-chip, .searchbar { transition: none; }
+  }
+</style>
+
+<div class="intro">
+  <div class="wordmark">Gebraucht<span class="dot">·</span>Radar</div>
+  <p>Interaktive Vorschau – ein Suchbegriff, alle Portale auf einmal. Alles hier ist echt anklickbar.</p>
+  <div class="legend">
+    <span>🔍 <b>Suchen</b></span>
+    <span>↕ <b>Sortieren</b></span>
+    <span>♥ <b>Merken</b></span>
+    <span>👆 <b>Details</b></span>
+  </div>
+</div>
+
+<div class="phone">
+  <div class="screen">
+    <!-- Kopfbereich -->
+    <div class="topbar">
+      <div class="mark">Gebraucht<span class="dot">·</span>Radar</div>
+      <div class="ctx" id="topbarCtx">Meta-Suche</div>
+      <div class="clear" id="clearFav" style="display:none">Leeren</div>
+    </div>
+
+    <div id="searchControls">
+      <div class="controls">
+        <div class="searchbar" id="searchWrap">
+          <span class="glass">🔍</span>
+          <input id="searchInput" type="text" placeholder="Was suchst du? z. B. iPhone 12 …" autocomplete="off" />
+          <button id="searchBtn">Suchen</button>
+        </div>
+      </div>
+      <div class="sorts">
+        <span class="lbl">Sortieren</span>
+        <button class="sort-chip active" data-sort="price_asc">Preis ↑</button>
+        <button class="sort-chip" data-sort="price_desc">Preis ↓</button>
+        <button class="sort-chip" data-sort="newest">Neueste</button>
+      </div>
+      <div class="status" id="status"></div>
+    </div>
+
+    <div class="list" id="list"></div>
+
+    <div class="tabbar">
+      <button class="tab active" id="tabSearch"><span class="ic">🔍</span><span class="lbl">Suche</span></button>
+      <button class="tab" id="tabFav"><span class="ic" id="favIc">♥</span><span class="lbl">Merkliste</span></button>
+    </div>
+
+    <!-- Detail -->
+    <div class="detail" id="detail">
+      <div class="detail-hero">
+        <div class="detail-float">
+          <button class="round-btn" id="detailBack">‹</button>
+          <button class="round-btn" id="detailHeart">♡</button>
+        </div>
+        <div class="big" id="detailImg"></div>
+      </div>
+      <div class="detail-scroll">
+        <div class="detail-content">
+          <span class="detail-source" id="detailSource"></span>
+          <h2 class="detail-title" id="detailTitle"></h2>
+          <div class="detail-price" id="detailPrice"></div>
+          <div class="kv" id="detailKv"></div>
+          <div class="detail-section">Beschreibung</div>
+          <div class="detail-desc" id="detailDesc"></div>
+        </div>
+      </div>
+      <div class="detail-footer">
+        <button class="cta" id="detailCta">Auf dem Portal öffnen</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<p class="demo-note">
+  Vorschau mit Demo-Daten – dieselbe Suchlogik wie im Backend (<code>/search</code>). Die echten Portale (Kleinanzeigen.de, markt.de) verbieten automatisches Auslesen und sind daher noch nicht angebunden.
+</p>
+
+<script>
+(function () {
+  "use strict";
+
+  var CITIES = ["Berlin","Hamburg","München","Köln","Frankfurt am Main","Stuttgart","Leipzig","Dortmund"];
+  var CONDITIONS = ["Neuwertig","Sehr gut","Gut","Gebraucht","Defekt/Bastler"];
+  var SOURCES = [
+    { label: "Demo", color: "var(--dot-demo)" },
+    { label: "Kleinanzeigen", color: "var(--dot-klein)" },
+    { label: "markt.de", color: "var(--dot-markt)" }
+  ];
+
+  function hash(str) {
+    var h = 2166136261;
+    for (var i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 16777619); }
+    return h >>> 0;
+  }
+  function cap(s) { return s ? s.charAt(0).toUpperCase() + s.slice(1) : s; }
+
+  function emojiFor(term) {
+    var t = term.toLowerCase();
+    var map = [
+      [/(iphone|handy|samsung|smartphone|pixel)/, "📱"],
+      [/(laptop|macbook|notebook|pc|rechner)/, "💻"],
+      [/(fahrrad|rennrad|bike|mountainbike|mtb)/, "🚲"],
+      [/(auto|pkw|golf|bmw|audi|mercedes)/, "🚗"],
+      [/(sofa|couch|sessel|möbel|mobel|schrank|tisch|stuhl)/, "🛋️"],
+      [/(playstation|ps5|ps4|xbox|nintendo|konsole|switch)/, "🎮"],
+      [/(kamera|objektiv|canon|nikon|sony)/, "📷"],
+      [/(buch|bücher|bucher|roman)/, "📚"],
+      [/(schuhe|sneaker|nike|adidas)/, "👟"],
+      [/(kinderwagen|spielzeug|lego)/, "🧸"],
+      [/(gitarre|klavier|piano|keyboard|instrument)/, "🎸"],
+      [/(werkzeug|bohrmaschine|akkuschrauber)/, "🛠️"],
+      [/(kühlschrank|kuhlschrank|waschmaschine|herd)/, "🔌"],
+      [/(uhr|rolex|armbanduhr)/, "⌚"]
+    ];
+    for (var i = 0; i < map.length; i++) if (map[i][0].test(t)) return map[i][1];
+    return "📦";
+  }
+
+  function generate(term) {
+    term = (term || "Artikel").trim();
+    var base = hash(term.toLowerCase());
+    var basePrice = 10 + (base % 800);
+    var emoji = emojiFor(term);
+    var out = [];
+    for (var i = 0; i < 12; i++) {
+      var seed = hash(term + ":" + i);
+      var spread = (seed % 60) - 20;
+      var price = Math.max(1, Math.round((basePrice * (100 + spread)) / 100));
+      var conditionIdx = seed % CONDITIONS.length;
+      var priceType = (seed % 4 === 0) ? "negotiable" : "fixed";
+      if (conditionIdx === CONDITIONS.length - 1 && seed % 7 === 0) { price = 0; priceType = "free"; }
+      var city = CITIES[seed % CITIES.length];
+      var condition = CONDITIONS[conditionIdx];
+      out.push({
+        id: "mock:" + base + ":" + i,
+        title: cap(term) + " – " + condition + " (Angebot " + (i + 1) + ")",
+        price: price, priceType: priceType, location: city, daysAgo: seed % 21,
+        condition: condition, sourceIdx: seed % 3, emoji: emoji,
+        description: cap(term) + " in Zustand „" + condition + "“. Abholung in " + city + " oder Versand möglich."
+      });
+    }
+    return out;
+  }
+
+  function fmtPrice(l) {
+    if (l.priceType === "free" || l.price === 0) return "Zu verschenken";
+    var v = new Intl.NumberFormat("de-DE").format(l.price);
+    return l.priceType === "negotiable" ? v + " € VB" : v + " €";
+  }
+  function fmtPosted(d) { return d <= 0 ? "heute" : (d === 1 ? "gestern" : "vor " + d + " Tagen"); }
+
+  function sortList(list, sort) {
+    var c = list.slice();
+    if (sort === "price_asc") c.sort(function (a, b) { return a.price - b.price; });
+    else if (sort === "price_desc") c.sort(function (a, b) { return b.price - a.price; });
+    else if (sort === "newest") c.sort(function (a, b) { return a.daysAgo - b.daysAgo; });
+    return c;
+  }
+
+  var state = { tab: "search", term: "", sort: "price_asc", results: [], favorites: loadFav() };
+
+  function loadFav() { try { return JSON.parse(localStorage.getItem("gr.fav") || "{}"); } catch (e) { return {}; } }
+  function saveFav() { try { localStorage.setItem("gr.fav", JSON.stringify(state.favorites)); } catch (e) {} }
+  function favCount() { return Object.keys(state.favorites).length; }
+  function isFav(id) { return !!state.favorites[id]; }
+  function toggleFav(l) {
+    if (state.favorites[l.id]) delete state.favorites[l.id]; else state.favorites[l.id] = l;
+    saveFav(); render();
+  }
+
+  var $ = function (id) { return document.getElementById(id); };
+  var listEl = $("list");
+
+  function chipHtml(l) {
+    var s = SOURCES[l.sourceIdx];
+    return '<span class="chip"><span class="d" style="background:' + s.color + '"></span>' + s.label + '</span>';
+  }
+
+  function cardEl(l) {
+    var card = document.createElement("div");
+    card.className = "card";
+    var free = (l.priceType === "free" || l.price === 0);
+    card.innerHTML =
+      '<div class="thumb"><span>' + l.emoji + '</span></div>' +
+      '<div class="card-body">' +
+        '<div class="card-top">' +
+          '<div class="card-title">' + l.title + '</div>' +
+          '<button class="heart ' + (isFav(l.id) ? "on" : "") + '">' + (isFav(l.id) ? "♥" : "♡") + '</button>' +
+        '</div>' +
+        '<div class="price ' + (free ? "free" : "") + '">' + fmtPrice(l) + '</div>' +
+        '<div class="meta-row">' + chipHtml(l) +
+          '<span class="meta-text">' + l.location + ' · ' + fmtPosted(l.daysAgo) + '</span>' +
+        '</div>' +
+      '</div>';
+    card.addEventListener("click", function () { openDetail(l); });
+    var heart = card.querySelector(".heart");
+    heart.addEventListener("click", function (e) { e.stopPropagation(); toggleFav(l); });
+    return card;
+  }
+
+  function renderList(items, emptyHtml) {
+    listEl.innerHTML = "";
+    if (!items.length) { listEl.innerHTML = emptyHtml; wireSuggestions(); return; }
+    var frag = document.createDocumentFragment();
+    for (var i = 0; i < items.length; i++) frag.appendChild(cardEl(items[i]));
+    listEl.appendChild(frag);
+    listEl.scrollTop = 0;
+  }
+
+  function wireSuggestions() {
+    var btns = listEl.querySelectorAll(".suggestions button");
+    for (var i = 0; i < btns.length; i++) {
+      btns[i].addEventListener("click", function () { runSearch(this.getAttribute("data-q")); });
+    }
+  }
+
+  function render() {
+    if (state.tab === "search") {
+      $("topbarCtx").textContent = "Meta-Suche";
+      $("clearFav").style.display = "none";
+      $("searchControls").style.display = "";
+      $("tabSearch").classList.add("active"); $("tabFav").classList.remove("active");
+
+      if (state.term.trim().length < 2) {
+        $("status").textContent = "";
+        renderList([],
+          '<div class="center"><div class="emoji">🔍</div>' +
+          '<p>Ein Suchbegriff durchsucht alle Portale<br>und macht die Preise vergleichbar.</p>' +
+          '<div class="suggest-lbl">Beliebte Suchen</div>' +
+          '<div class="suggestions">' +
+            '<button data-q="iPhone 12">iPhone 12</button>' +
+            '<button data-q="Rennrad">Rennrad</button>' +
+            '<button data-q="Sofa">Sofa</button>' +
+            '<button data-q="PlayStation 5">PlayStation 5</button>' +
+            '<button data-q="Kinderwagen">Kinderwagen</button>' +
+          '</div></div>');
+      } else {
+        var items = sortList(state.results, state.sort);
+        $("status").innerHTML = "<b>" + items.length + "</b> Treffer · Demo-Quelle aktiv";
+        renderList(items, "");
+      }
+    } else {
+      $("topbarCtx").textContent = "Merkliste";
+      var c = favCount();
+      $("clearFav").style.display = c > 0 ? "" : "none";
+      $("searchControls").style.display = "none";
+      $("tabFav").classList.add("active"); $("tabSearch").classList.remove("active");
+      var favs = Object.keys(state.favorites).map(function (k) { return state.favorites[k]; }).reverse();
+      renderList(favs,
+        '<div class="center"><div class="emoji">♡</div>' +
+        '<p>Noch nichts gemerkt.<br>Tippe bei einem Angebot auf das Herz.</p></div>');
+    }
+
+    var fc = favCount(); var ic = $("favIc");
+    var existing = ic.querySelector(".count"); if (existing) existing.remove();
+    if (fc > 0) {
+      var b = document.createElement("span"); b.className = "count";
+      b.textContent = fc > 99 ? "99+" : fc; ic.appendChild(b);
+    }
+  }
+
+  function runSearch(term) {
+    state.term = term; $("searchInput").value = term;
+    state.results = generate(term); state.tab = "search"; render();
+  }
+
+  var currentDetail = null;
+  function openDetail(l) {
+    currentDetail = l;
+    var free = (l.priceType === "free" || l.price === 0);
+    var s = SOURCES[l.sourceIdx];
+    $("detailImg").textContent = l.emoji;
+    $("detailSource").innerHTML = '<span class="d" style="background:' + s.color + '"></span>' + s.label;
+    $("detailTitle").textContent = l.title;
+    var price = $("detailPrice");
+    price.textContent = fmtPrice(l);
+    price.className = "detail-price" + (free ? " free" : "");
+    $("detailKv").innerHTML =
+      '<div class="row"><span class="k">Ort</span><span class="v">' + l.location + '</span></div>' +
+      '<div class="row"><span class="k">Zustand</span><span class="v">' + l.condition + '</span></div>' +
+      '<div class="row"><span class="k">Eingestellt</span><span class="v">' + fmtPosted(l.daysAgo) + '</span></div>' +
+      '<div class="row"><span class="k">Quelle</span><span class="v">' + s.label + '</span></div>';
+    $("detailDesc").textContent = l.description;
+    $("detailCta").textContent = "Auf " + s.label + " öffnen";
+    updateDetailHeart();
+    $("detail").classList.add("open");
+  }
+  function updateDetailHeart() {
+    var h = $("detailHeart"); var on = currentDetail && isFav(currentDetail.id);
+    h.textContent = on ? "♥" : "♡"; h.classList.toggle("on", !!on);
+  }
+  function closeDetail() { $("detail").classList.remove("open"); }
+
+  var wrap = $("searchWrap"), input = $("searchInput");
+  input.addEventListener("focus", function () { wrap.classList.add("focus"); });
+  input.addEventListener("blur", function () { wrap.classList.remove("focus"); });
+  $("searchBtn").addEventListener("click", function () {
+    var v = input.value.trim(); if (v.length >= 2) runSearch(v);
+  });
+  input.addEventListener("keydown", function (e) {
+    if (e.key === "Enter") { var v = this.value.trim(); if (v.length >= 2) runSearch(v); }
+  });
+  var sortBtns = document.querySelectorAll(".sort-chip");
+  for (var i = 0; i < sortBtns.length; i++) {
+    sortBtns[i].addEventListener("click", function () {
+      for (var j = 0; j < sortBtns.length; j++) sortBtns[j].classList.remove("active");
+      this.classList.add("active"); state.sort = this.getAttribute("data-sort"); render();
+    });
+  }
+  $("tabSearch").addEventListener("click", function () { state.tab = "search"; render(); });
+  $("tabFav").addEventListener("click", function () { state.tab = "favorites"; render(); });
+  $("clearFav").addEventListener("click", function () { state.favorites = {}; saveFav(); render(); });
+  $("detailBack").addEventListener("click", closeDetail);
+  $("detailCta").addEventListener("click", closeDetail);
+  $("detailHeart").addEventListener("click", function () { if (currentDetail) { toggleFav(currentDetail); updateDetailHeart(); } });
+
+  render();
+})();
+</script>

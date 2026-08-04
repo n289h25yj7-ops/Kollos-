@@ -8,7 +8,7 @@ const OPTIONS: { value: SortOption; label: string }[] = [
   { value: "newest", label: "Neueste" },
 ];
 
-/** Segment-Umschalter fuer die Sortierung des Gesamtergebnisses. */
+/** Sortier-Umschalter als dezente Pills; aktiv = Gold-Akzent. */
 export function SortSelector({
   value,
   onChange,
@@ -18,6 +18,7 @@ export function SortSelector({
 }) {
   return (
     <View style={styles.row}>
+      <Text style={styles.label}>Sortieren</Text>
       {OPTIONS.map((opt) => {
         const active = opt.value === value;
         return (
@@ -28,7 +29,7 @@ export function SortSelector({
             accessibilityRole="button"
             accessibilityState={{ selected: active }}
           >
-            <Text style={[styles.label, active && styles.labelActive]}>{opt.label}</Text>
+            <Text style={[styles.chipText, active && styles.chipTextActive]}>{opt.label}</Text>
           </Pressable>
         );
       })}
@@ -37,16 +38,28 @@ export function SortSelector({
 }
 
 const styles = StyleSheet.create({
-  row: { flexDirection: "row", gap: theme.spacing(2), paddingHorizontal: theme.spacing(4) },
+  row: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: theme.spacing(2),
+    paddingHorizontal: theme.spacing(4),
+  },
+  label: {
+    fontSize: 10.5,
+    letterSpacing: 1.6,
+    textTransform: "uppercase",
+    color: theme.colors.textFaint,
+    marginRight: 2,
+  },
   chip: {
     paddingHorizontal: theme.spacing(3),
-    paddingVertical: theme.spacing(2),
+    paddingVertical: theme.spacing(1.5),
     borderRadius: 999,
     borderWidth: 1,
-    borderColor: theme.colors.border,
-    backgroundColor: theme.colors.surface,
+    borderColor: theme.colors.hairline,
+    backgroundColor: "transparent",
   },
-  chipActive: { backgroundColor: theme.colors.primary, borderColor: theme.colors.primary },
-  label: { color: theme.colors.textMuted, fontSize: 13, fontWeight: "600" },
-  labelActive: { color: "#fff" },
+  chipActive: { backgroundColor: theme.colors.goldDim, borderColor: "rgba(201,168,106,0.55)" },
+  chipText: { color: theme.colors.textMuted, fontSize: 12.5, fontWeight: "600" },
+  chipTextActive: { color: theme.colors.goldBright },
 });

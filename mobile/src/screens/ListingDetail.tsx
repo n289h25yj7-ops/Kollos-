@@ -11,9 +11,9 @@ import {
 import type { Listing } from "../types";
 import { SOURCE_META, theme } from "../theme";
 import { formatPostedAt, formatPrice } from "../format";
-import { FavoriteButton } from "../components/FavoriteButton";
+import { useFavorites } from "../favorites/FavoritesContext";
 
-/** Vollbild-Detailansicht eines Inserats, als Modal ueber die Liste gelegt. */
+/** Vollbild-Detailansicht eines Inserats im dunklen, edlen Stil. */
 export function ListingDetail({
   listing,
   visible,
@@ -31,45 +31,56 @@ export function ListingDetail({
 }
 
 function DetailContent({ listing, onClose }: { listing: Listing; onClose: () => void }) {
-  const meta = SOURCE_META[listing.source] ?? { label: listing.source, color: theme.colors.textMuted };
+  const { isFavorite, toggle } = useFavorites();
+  const meta = SOURCE_META[listing.source] ?? { label: listing.source, dot: theme.colors.textFaint };
   const posted = formatPostedAt(listing.postedAt);
   const isFree = listing.priceType === "free" || listing.price === 0;
+  const fav = isFavorite(listing.id);
 
   return (
     <View style={styles.container}>
-      <View style={styles.topBar}>
-        <Pressable onPress={onClose} hitSlop={8} accessibilityRole="button" accessibilityLabel="Zurueck">
-          <Text style={styles.close}>‹ Zurück</Text>
-        </Pressable>
-        <FavoriteButton listing={listing} size={26} />
+      <View style={styles.hero}>
+        {listing.imageUrl ? (
+          <Image source={{ uri: listing.imageUrl }} style={styles.heroImage} resizeMode="cover" />
+        ) : (
+          <View style={styles.heroPlaceholder}>
+            <Text style={styles.heroGlyph}>◈</Text>
+          </View>
+        )}
+        <View style={styles.float}>
+          <Pressable style={styles.roundBtn} onPress={onClose} accessibilityRole="button" accessibilityLabel="Zurueck">
+            <Text style={styles.roundIcon}>‹</Text>
+          </Pressable>
+          <Pressable
+            style={styles.roundBtn}
+            onPress={() => toggle(listing)}
+            accessibilityRole="button"
+            accessibilityLabel={fav ? "Aus Merkliste entfernen" : "Zur Merkliste hinzufuegen"}
+          >
+            <Text style={[styles.roundIcon, fav && styles.heartOn]}>{fav ? "♥" : "♡"}</Text>
+          </Pressable>
+        </View>
       </View>
 
       <ScrollView contentContainerStyle={styles.scroll}>
-        {listing.imageUrl ? (
-          <Image source={{ uri: listing.imageUrl }} style={styles.image} resizeMode="cover" />
-        ) : (
-          <View style={[styles.image, styles.imagePlaceholder]}>
-            <Text style={styles.placeholderText}>kein Bild</Text>
-          </View>
-        )}
-
         <View style={styles.content}>
-          <View style={[styles.badge, { backgroundColor: meta.color }]}>
-            <Text style={styles.badgeText}>{meta.label}</Text>
+          <View style={styles.source}>
+            <View style={[styles.dot, { backgroundColor: meta.dot }]} />
+            <Text style={styles.sourceText}>{meta.label}</Text>
           </View>
 
           <Text style={styles.title}>{listing.title}</Text>
           <Text style={[styles.price, isFree && styles.priceFree]}>{formatPrice(listing)}</Text>
 
-          <View style={styles.metaBlock}>
-            {listing.location ? <MetaRow label="Ort" value={listing.location} /> : null}
-            {posted ? <MetaRow label="Eingestellt" value={posted} /> : null}
-            <MetaRow label="Quelle" value={meta.label} />
+          <View style={styles.kv}>
+            {listing.location ? <Row label="Ort" value={listing.location} /> : null}
+            {posted ? <Row label="Eingestellt" value={posted} /> : null}
+            <Row label="Quelle" value={meta.label} last />
           </View>
 
           {listing.description ? (
             <>
-              <Text style={styles.sectionTitle}>Beschreibung</Text>
+              <Text style={styles.section}>Beschreibung</Text>
               <Text style={styles.description}>{listing.description}</Text>
             </>
           ) : null}
@@ -89,79 +100,89 @@ function DetailContent({ listing, onClose }: { listing: Listing; onClose: () => 
   );
 }
 
-function MetaRow({ label, value }: { label: string; value: string }) {
+function Row({ label, value, last }: { label: string; value: string; last?: boolean }) {
   return (
-    <View style={styles.metaRow}>
-      <Text style={styles.metaLabel}>{label}</Text>
-      <Text style={styles.metaValue}>{value}</Text>
+    <View style={[styles.row, last && styles.rowLast]}>
+      <Text style={styles.k}>{label}</Text>
+      <Text style={styles.v}>{value}</Text>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: theme.colors.background },
-  topBar: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: theme.spacing(4),
-    paddingTop: theme.spacing(10),
-    paddingBottom: theme.spacing(2),
-    backgroundColor: theme.colors.surface,
-    borderBottomWidth: 1,
-    borderBottomColor: theme.colors.border,
-  },
-  close: { color: theme.colors.primary, fontSize: 16, fontWeight: "600" },
-  scroll: { paddingBottom: theme.spacing(6) },
-  image: { width: "100%", height: 260, backgroundColor: theme.colors.border },
-  imagePlaceholder: { alignItems: "center", justifyContent: "center" },
-  placeholderText: { color: theme.colors.textMuted },
-  content: { padding: theme.spacing(4) },
-  badge: {
-    alignSelf: "flex-start",
-    borderRadius: 6,
-    paddingHorizontal: theme.spacing(2),
-    paddingVertical: 2,
-    marginBottom: theme.spacing(2),
-  },
-  badgeText: { color: "#fff", fontSize: 12, fontWeight: "600" },
-  title: { fontSize: 20, fontWeight: "700", color: theme.colors.text },
-  price: { marginTop: theme.spacing(2), fontSize: 26, fontWeight: "800", color: theme.colors.primary },
-  priceFree: { color: theme.colors.free },
-  metaBlock: {
-    marginTop: theme.spacing(4),
-    borderTopWidth: 1,
-    borderTopColor: theme.colors.border,
-  },
-  metaRow: {
+  container: { flex: 1, backgroundColor: theme.colors.bg },
+  hero: { height: 264, backgroundColor: theme.colors.surface3 },
+  heroImage: { width: "100%", height: "100%" },
+  heroPlaceholder: { flex: 1, alignItems: "center", justifyContent: "center" },
+  heroGlyph: { fontSize: 72, color: theme.colors.textFaint },
+  float: {
+    position: "absolute",
+    top: theme.spacing(10),
+    left: theme.spacing(4),
+    right: theme.spacing(4),
     flexDirection: "row",
     justifyContent: "space-between",
-    paddingVertical: theme.spacing(2),
-    borderBottomWidth: 1,
-    borderBottomColor: theme.colors.border,
   },
-  metaLabel: { color: theme.colors.textMuted, fontSize: 14 },
-  metaValue: { color: theme.colors.text, fontSize: 14, fontWeight: "600" },
-  sectionTitle: {
-    marginTop: theme.spacing(5),
-    marginBottom: theme.spacing(2),
-    fontSize: 16,
-    fontWeight: "700",
-    color: theme.colors.text,
-  },
-  description: { color: theme.colors.text, fontSize: 15, lineHeight: 22 },
-  footer: {
-    padding: theme.spacing(4),
-    borderTopWidth: 1,
-    borderTopColor: theme.colors.border,
-    backgroundColor: theme.colors.surface,
-  },
-  cta: {
-    height: 50,
-    borderRadius: theme.radius,
-    backgroundColor: theme.colors.primary,
+  roundBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: theme.colors.hairline,
+    backgroundColor: "rgba(10,10,12,0.6)",
     alignItems: "center",
     justifyContent: "center",
   },
-  ctaText: { color: "#fff", fontSize: 16, fontWeight: "700" },
+  roundIcon: { color: theme.colors.text, fontSize: 20, marginTop: -2 },
+  heartOn: { color: theme.colors.gold },
+  scroll: { paddingBottom: theme.spacing(6) },
+  content: { padding: theme.spacing(5) },
+  source: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: theme.spacing(1.5),
+    alignSelf: "flex-start",
+    borderWidth: 1,
+    borderColor: theme.colors.hairline,
+    borderRadius: 999,
+    paddingHorizontal: theme.spacing(2.5),
+    paddingVertical: theme.spacing(1),
+  },
+  dot: { width: 6, height: 6, borderRadius: 3 },
+  sourceText: { color: theme.colors.textMuted, fontSize: 11, letterSpacing: 0.6, textTransform: "uppercase" },
+  title: { marginTop: theme.spacing(3.5), fontSize: 21, fontWeight: "600", color: theme.colors.text, lineHeight: 27 },
+  price: { marginTop: theme.spacing(2.5), fontSize: 27, fontWeight: "700", color: theme.colors.text },
+  priceFree: { color: theme.colors.sage },
+  kv: { marginTop: theme.spacing(5) },
+  row: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    paddingVertical: theme.spacing(3),
+    borderTopWidth: 1,
+    borderTopColor: theme.colors.hairline,
+  },
+  rowLast: { borderBottomWidth: 1, borderBottomColor: theme.colors.hairline },
+  k: { color: theme.colors.textFaint, fontSize: 13 },
+  v: { color: theme.colors.text, fontSize: 13.5, fontWeight: "600" },
+  section: {
+    marginTop: theme.spacing(6),
+    fontSize: 11,
+    letterSpacing: 2,
+    textTransform: "uppercase",
+    color: theme.colors.textFaint,
+  },
+  description: { marginTop: theme.spacing(2.5), color: "#cfccc4", fontSize: 15, lineHeight: 24 },
+  footer: {
+    padding: theme.spacing(5),
+    borderTopWidth: 1,
+    borderTopColor: theme.colors.hairline,
+  },
+  cta: {
+    height: 52,
+    borderRadius: 14,
+    backgroundColor: theme.colors.gold,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  ctaText: { color: theme.colors.onGold, fontSize: 15, fontWeight: "700" },
 });

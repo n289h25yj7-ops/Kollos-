@@ -4,11 +4,11 @@
     "slug": "gebraucht-radar",
     "version": "0.1.0",
     "orientation": "portrait",
-    "userInterfaceStyle": "light",
+    "userInterfaceStyle": "dark",
     "scheme": "gebrauchtradar",
     "splash": {
       "resizeMode": "contain",
-      "backgroundColor": "#0f766e"
+      "backgroundColor": "#0b0b0d"
     },
     "assetBundlePatterns": ["**/*"],
     "ios": {
@@ -16,7 +16,7 @@
     },
     "android": {
       "adaptiveIcon": {
-        "backgroundColor": "#0f766e"
+        "backgroundColor": "#0b0b0d"
       }
     },
     "web": {

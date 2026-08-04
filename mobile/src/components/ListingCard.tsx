@@ -1,10 +1,17 @@
-import { Image, Linking, Pressable, StyleSheet, Text, View } from "react-native";
+import { Image, Pressable, StyleSheet, Text, View } from "react-native";
 import type { Listing } from "../types";
 import { SOURCE_META, theme } from "../theme";
 import { formatPostedAt, formatPrice } from "../format";
+import { FavoriteButton } from "./FavoriteButton";
 
-/** Eine Ergebniskachel: Bild, Titel, Preis, Ort, Quelle. Oeffnet das Original-Inserat. */
-export function ListingCard({ listing }: { listing: Listing }) {
+/** Eine Ergebniskachel: Bild, Titel, Preis, Ort, Quelle, Merken-Herz. Tap oeffnet Details. */
+export function ListingCard({
+  listing,
+  onPress,
+}: {
+  listing: Listing;
+  onPress: (listing: Listing) => void;
+}) {
   const meta = SOURCE_META[listing.source] ?? { label: listing.source, color: theme.colors.textMuted };
   const posted = formatPostedAt(listing.postedAt);
   const isFree = listing.priceType === "free" || listing.price === 0;
@@ -12,7 +19,7 @@ export function ListingCard({ listing }: { listing: Listing }) {
   return (
     <Pressable
       style={({ pressed }) => [styles.card, pressed && styles.pressed]}
-      onPress={() => Linking.openURL(listing.url).catch(() => undefined)}
+      onPress={() => onPress(listing)}
       accessibilityRole="button"
       accessibilityLabel={`${listing.title}, ${formatPrice(listing)}`}
     >
@@ -25,9 +32,12 @@ export function ListingCard({ listing }: { listing: Listing }) {
       )}
 
       <View style={styles.body}>
-        <Text style={styles.title} numberOfLines={2}>
-          {listing.title}
-        </Text>
+        <View style={styles.topRow}>
+          <Text style={styles.title} numberOfLines={2}>
+            {listing.title}
+          </Text>
+          <FavoriteButton listing={listing} />
+        </View>
 
         <Text style={[styles.price, isFree && styles.priceFree]}>{formatPrice(listing)}</Text>
 
@@ -63,7 +73,8 @@ const styles = StyleSheet.create({
   imagePlaceholder: { alignItems: "center", justifyContent: "center" },
   placeholderText: { color: theme.colors.textMuted, fontSize: 12 },
   body: { flex: 1, padding: theme.spacing(3) },
-  title: { fontSize: 15, fontWeight: "600", color: theme.colors.text },
+  topRow: { flexDirection: "row", alignItems: "flex-start", gap: theme.spacing(2) },
+  title: { flex: 1, fontSize: 15, fontWeight: "600", color: theme.colors.text },
   price: {
     marginTop: theme.spacing(1),
     fontSize: 17,

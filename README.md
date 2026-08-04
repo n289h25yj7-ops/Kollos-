@@ -12,6 +12,10 @@ Das Projekt besteht aus zwei Teilen:
 | `backend/`  | Aggregator-API (Node + TypeScript). Fragt alle Portale parallel ab.      |
 | `mobile/`   | Mobile-App (Expo / React Native + TypeScript) für iOS & Android.         |
 
+**Funktionen der App:** Suche über alle Portale, Sortierung (Preis auf/ab, Neueste),
+Ergebnisliste mit Quellen-Badge, **Detailansicht** eines Inserats sowie eine
+**Merkliste/Favoriten** (persistent gespeichert, mit Zähler in der Tab-Leiste).
+
 ---
 
 ## Wichtiger Hinweis zum Datenzugriff (bitte zuerst lesen)
@@ -119,6 +123,8 @@ defensiv, da Portale ihr HTML regelmäßig ändern.
 ## Nächste sinnvolle Schritte
 
 - Rechtlich saubere Datenquellen anbinden (Partner-/Affiliate-APIs).
-- Detailansicht eines Inserats + Merkliste/Favoriten.
 - Preis-Alarm (Benachrichtigung, wenn ein gesuchter Artikel unter X € auftaucht).
 - Persistente gespeicherte Suchen und Verlauf.
+- Filter-UI in der App (Preisspanne, Quellen-Auswahl) – das Backend unterstützt beides bereits.
+
+**Bereits umgesetzt:** Suche, Sortierung, Detailansicht, Merkliste/Favoriten.

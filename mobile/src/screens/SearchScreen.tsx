@@ -7,16 +7,18 @@ import {
   View,
 } from "react-native";
 import { useQuery } from "@tanstack/react-query";
-import type { SortOption } from "../types";
+import type { Listing, SortOption } from "../types";
 import { search } from "../api";
 import { theme } from "../theme";
 import { SearchBar } from "../components/SearchBar";
 import { SortSelector } from "../components/SortSelector";
 import { ListingCard } from "../components/ListingCard";
+import { ListingDetail } from "./ListingDetail";
 
 export function SearchScreen() {
   const [term, setTerm] = useState<string>("");
   const [sort, setSort] = useState<SortOption>("price_asc");
+  const [selected, setSelected] = useState<Listing | null>(null);
 
   const query = useQuery({
     queryKey: ["search", term, sort],
@@ -52,6 +54,13 @@ export function SearchScreen() {
         error={query.error}
         listings={data?.listings ?? []}
         onRetry={() => query.refetch()}
+        onOpen={setSelected}
+      />
+
+      <ListingDetail
+        listing={selected}
+        visible={selected !== null}
+        onClose={() => setSelected(null)}
       />
     </View>
   );
@@ -87,13 +96,15 @@ function Content({
   error,
   listings,
   onRetry,
+  onOpen,
 }: {
   term: string;
   isLoading: boolean;
   isError: boolean;
   error: unknown;
-  listings: import("../types").Listing[];
+  listings: Listing[];
   onRetry: () => void;
+  onOpen: (listing: Listing) => void;
 }) {
   if (term.trim().length < 2) {
     return <Centered emoji="🔍" text="Starte eine Suche, um Angebote zu vergleichen." />;
@@ -122,7 +133,7 @@ function Content({
     <FlatList
       data={listings}
       keyExtractor={(item) => item.id}
-      renderItem={({ item }) => <ListingCard listing={item} />}
+      renderItem={({ item }) => <ListingCard listing={item} onPress={onOpen} />}
       contentContainerStyle={styles.listContent}
       keyboardDismissMode="on-drag"
     />

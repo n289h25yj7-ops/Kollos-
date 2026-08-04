@@ -1,0 +1,14 @@
+# Abhaengigkeiten
+**/node_modules/
+
+# Builds / Caches
+**/dist/
+**/.expo/
+**/web-build/
+
+# Logs & Umgebung
+*.log
+**/.env
+
+# OS
+.DS_Store

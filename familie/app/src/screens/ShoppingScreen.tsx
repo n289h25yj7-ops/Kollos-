@@ -1,24 +1,14 @@
 import { useEffect, useState } from "react";
-import { Alert, Platform, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useSession } from "../session";
 import { theme } from "../theme";
 import type { ShoppingList } from "../types";
 import { Button, Card, Chip, Empty, ErrorText, Input, ScreenHeader } from "../components/ui";
+import { confirmAction } from "../components/confirm";
 
 const c = theme.colors;
 
-function confirm(title: string, text: string, onYes: () => void) {
-  if (Platform.OS === "web") {
-    // eslint-disable-next-line no-alert
-    if (globalThis.confirm?.(`${title}\n\n${text}`)) onYes();
-    return;
-  }
-  Alert.alert(title, text, [
-    { text: "Abbrechen", style: "cancel" },
-    { text: "Löschen", style: "destructive", onPress: onYes },
-  ]);
-}
 
 export function ShoppingScreen() {
   const { api, memberById } = useSession();
@@ -131,7 +121,7 @@ export function ShoppingScreen() {
         ) : null}
 
         {active && all.length > 1 ? (
-          <Text style={[s.clear, { textAlign: "center", marginTop: theme.spacing(8), color: c.textFaint }]} onPress={() => confirm("Liste löschen?", `„${active.name}“ und alle Einträge werden für alle gelöscht.`, () => deleteList.mutate(active.id))}>
+          <Text style={[s.clear, { textAlign: "center", marginTop: theme.spacing(8), color: c.textFaint }]} onPress={() => confirmAction("Liste löschen?", `„${active.name}“ und alle Einträge werden für alle gelöscht.`, "Löschen", () => deleteList.mutate(active.id))}>
             Liste „{active.name}“ löschen
           </Text>
         ) : null}

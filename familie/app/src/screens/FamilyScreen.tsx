@@ -1,23 +1,16 @@
 import { useState } from "react";
-import { Alert, Platform, ScrollView, Share, StyleSheet, Switch, Text, View } from "react-native";
+import { Platform, ScrollView, Share, StyleSheet, Switch, Text, View } from "react-native";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useSession } from "../session";
 import { theme } from "../theme";
 import { Avatar, Button, Card, ErrorText, Input, Label, ScreenHeader } from "../components/ui";
 import { PUSH_LABEL, useNotifications } from "../notifications";
+import { confirmAction } from "../components/confirm";
+import { IS_DEMO } from "../config";
+import { resetDemo } from "../demo/server";
 
 const c = theme.colors;
 
-function ask(title: string, text: string, yes: string, onYes: () => void) {
-  if (Platform.OS === "web") {
-    if (globalThis.confirm?.(`${title}\n\n${text}`)) onYes();
-    return;
-  }
-  Alert.alert(title, text, [
-    { text: "Abbrechen", style: "cancel" },
-    { text: yes, style: "destructive", onPress: onYes },
-  ]);
-}
 
 export function FamilyScreen({ onClose }: { onClose: () => void }) {
   const { api, session, members, signOut, serverUrl, live } = useSession();
@@ -52,7 +45,7 @@ export function FamilyScreen({ onClose }: { onClose: () => void }) {
               variant="ghost"
               label="Neuer Code"
               loading={newCode.isPending}
-              onPress={() => ask("Neuen Code erzeugen?", "Der alte Code funktioniert danach nicht mehr.", "Erneuern", () => newCode.mutate())}
+              onPress={() => confirmAction("Neuen Code erzeugen?", "Der alte Code funktioniert danach nicht mehr.", "Erneuern", () => newCode.mutate())}
             />
           </View>
         </Card>
@@ -91,12 +84,24 @@ export function FamilyScreen({ onClose }: { onClose: () => void }) {
         </View>
 
         <Text style={s.server}>
-          {live ? "● Verbunden" : "○ Nicht verbunden"} · {serverUrl}
+          {IS_DEMO ? "Demo-Modus · alles bleibt auf diesem Gerät" : `${live ? "● Verbunden" : "○ Nicht verbunden"} · ${serverUrl}`}
         </Text>
 
         <View style={{ gap: theme.spacing(2) }}>
-          <Button variant="ghost" label="Auf diesem Gerät abmelden" onPress={() => ask("Abmelden?", "Du kannst später mit dem Einladungscode wieder beitreten – allerdings als neues Mitglied.", "Abmelden", () => void signOut())} />
-          <Button variant="danger" label="Familie verlassen" loading={leave.isPending} onPress={() => ask("Familie verlassen?", "Du wirst aus der Familie entfernt und dein Standort gelöscht.", "Verlassen", () => leave.mutate())} />
+          <Button variant="ghost" label="Auf diesem Gerät abmelden" onPress={() => confirmAction("Abmelden?", "Du kannst später mit dem Einladungscode wieder beitreten – allerdings als neues Mitglied.", "Abmelden", () => void signOut())} />
+          {IS_DEMO ? (
+            <Button
+              variant="ghost"
+              label="Demo zurücksetzen"
+              onPress={() =>
+                confirmAction("Demo zurücksetzen?", "Alle Änderungen gehen verloren, die Beispiel-Familie startet neu.", "Zurücksetzen", () => {
+                  resetDemo();
+                  void signOut();
+                })
+              }
+            />
+          ) : null}
+          <Button variant="danger" label="Familie verlassen" loading={leave.isPending} onPress={() => confirmAction("Familie verlassen?", "Du wirst aus der Familie entfernt und dein Standort gelöscht.", "Verlassen", () => leave.mutate())} />
         </View>
       </ScrollView>
     </View>

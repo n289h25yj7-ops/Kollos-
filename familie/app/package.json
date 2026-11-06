@@ -8,7 +8,8 @@
     "android": "expo start --android",
     "ios": "expo start --ios",
     "web": "expo start --web",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "export:demo": "EXPO_PUBLIC_DEMO=1 expo export --platform web --output-dir dist-demo"
   },
   "dependencies": {
     "@expo/metro-runtime": "~4.0.0",

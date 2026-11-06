@@ -69,6 +69,14 @@ npm run web          # oder im Browser
 > „Server: … · ändern“ tippen und die **LAN-IP deines Rechners** eintragen, z. B.
 > `http://192.168.1.20:4100`.
 
+## Demo-Version (ohne Server)
+
+`npm run export:demo` im Ordner `app/` baut eine Web-Version, in der das Backend
+direkt im Browser läuft (`src/demo/server.ts`). Sie bringt eine fertig befüllte
+Beispiel-Familie mit (Einladungscode `DEMO42`), die Familie antwortet im Chat, und der
+Standort wird simuliert. Alle Daten bleiben auf dem Gerät. Ideal, um die App
+herzuzeigen, ohne etwas zu installieren.
+
 ## Online stellen (unterwegs nutzbar)
 
 Du brauchst einen kleinen Server mit Docker (z. B. einen günstigen VPS oder einen

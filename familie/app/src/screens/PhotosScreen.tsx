@@ -1,25 +1,16 @@
 import { useEffect, useRef, useState } from "react";
-import { Alert, FlatList, Image, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from "react-native";
+import { FlatList, Image, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from "react-native";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useSession } from "../session";
 import { brandFont, theme } from "../theme";
 import type { Album, Photo } from "../types";
 import { Button, Empty, ErrorText, Input, ScreenHeader } from "../components/ui";
 import { pickPhotos } from "../photoUpload";
+import { confirmAction } from "../components/confirm";
 
 const c = theme.colors;
 const MAX_WIDTH = 720;
 
-function confirm(title: string, text: string, yes: string, onYes: () => void) {
-  if (Platform.OS === "web") {
-    if (globalThis.confirm?.(`${title}\n\n${text}`)) onYes();
-    return;
-  }
-  Alert.alert(title, text, [
-    { text: "Abbrechen", style: "cancel" },
-    { text: yes, style: "destructive", onPress: onYes },
-  ]);
-}
 
 export function PhotosScreen() {
   const [open, setOpen] = useState<Album | null>(null);
@@ -162,7 +153,7 @@ function AlbumView({ album, onBack }: { album: Album; onBack: () => void }) {
           </Pressable>
         )}
         ListFooterComponent={
-          <Text style={s.deleteAlbum} onPress={() => confirm("Album löschen?", `„${album.name}“ und alle Fotos werden für alle gelöscht.`, "Löschen", () => removeAlbum.mutate())}>
+          <Text style={s.deleteAlbum} onPress={() => confirmAction("Album löschen?", `„${album.name}“ und alle Fotos werden für alle gelöscht.`, "Löschen", () => removeAlbum.mutate())}>
             Album löschen
           </Text>
         }
@@ -265,7 +256,7 @@ function Viewer({ photos, start, onClose }: { photos: Photo[]; start: number; on
             <Text style={s.albumMeta}>
               {author?.name ?? "Ehemaliges Mitglied"} · {date}
             </Text>
-            <Text style={s.deletePhoto} onPress={() => confirm("Foto löschen?", "Das Foto wird für alle gelöscht.", "Löschen", () => remove.mutate(photo.id))}>
+            <Text style={s.deletePhoto} onPress={() => confirmAction("Foto löschen?", "Das Foto wird für alle gelöscht.", "Löschen", () => remove.mutate(photo.id))}>
               Löschen
             </Text>
           </View>

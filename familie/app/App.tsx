@@ -15,6 +15,7 @@ import { PhotosScreen } from "./src/screens/PhotosScreen";
 import { LocationScreen } from "./src/screens/LocationScreen";
 import { FamilyScreen } from "./src/screens/FamilyScreen";
 import { Loading } from "./src/components/ui";
+import { ConfirmHost } from "./src/components/confirm";
 import { dayKey } from "./src/format";
 import { theme } from "./src/theme";
 
@@ -39,6 +40,7 @@ export default function App() {
         <SessionGate loading={<Loading />} fallback={(signIn) => <Onboarding onSignedIn={signIn} />}>
           <Shell />
         </SessionGate>
+        <ConfirmHost />
       </SafeAreaView>
     </QueryClientProvider>
   );

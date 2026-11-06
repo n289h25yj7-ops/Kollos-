@@ -1,5 +1,9 @@
 import { Platform } from "react-native";
 import Constants from "expo-constants";
+import { DEMO_URL } from "./demo/server";
+
+/** Demo-Build (EXPO_PUBLIC_DEMO=1): alles laeuft im Browser, ohne Server. */
+export const IS_DEMO = process.env.EXPO_PUBLIC_DEMO === "1";
 
 /**
  * Welcher Server ist voreingestellt? (Kann beim Einrichten in der App geaendert werden.)
@@ -20,4 +24,4 @@ function servedByBackend(): string | undefined {
   return port === "8081" || port === "19006" ? undefined : origin;
 }
 
-export const DEFAULT_SERVER_URL = fromEnv || servedByBackend() || fromConfig || "http://localhost:4100";
+export const DEFAULT_SERVER_URL = IS_DEMO ? DEMO_URL : fromEnv || servedByBackend() || fromConfig || "http://localhost:4100";

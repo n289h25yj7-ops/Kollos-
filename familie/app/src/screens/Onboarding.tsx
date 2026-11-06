@@ -1,19 +1,20 @@
 import { useState } from "react";
 import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, View } from "react-native";
 import { normalizeUrl, publicApi } from "../api";
-import { DEFAULT_SERVER_URL } from "../config";
+import { DEFAULT_SERVER_URL, IS_DEMO } from "../config";
+import { DEMO_CODE } from "../demo/server";
 import { brandFont, theme } from "../theme";
 import type { Session } from "../types";
-import { Button, Chip, ErrorText, Input } from "../components/ui";
+import { Button, Card, Chip, ErrorText, Input } from "../components/ui";
 
 type Mode = "create" | "join";
 
 /** Erster Start: neue Familie gruenden oder per Einladungscode beitreten. */
 export function Onboarding({ onSignedIn }: { onSignedIn: (serverUrl: string, s: Session) => Promise<void> }) {
-  const [mode, setMode] = useState<Mode>("create");
+  const [mode, setMode] = useState<Mode>(IS_DEMO ? "join" : "create");
   const [name, setName] = useState("");
   const [familyName, setFamilyName] = useState("");
-  const [code, setCode] = useState("");
+  const [code, setCode] = useState(IS_DEMO ? DEMO_CODE : "");
   const [serverUrl, setServerUrl] = useState(DEFAULT_SERVER_URL);
   const [showServer, setShowServer] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -42,7 +43,17 @@ export function Onboarding({ onSignedIn }: { onSignedIn: (serverUrl: string, s: 
       <ScrollView contentContainerStyle={s.wrap} keyboardShouldPersistTaps="handled">
         <Text style={s.mark}>✦</Text>
         <Text style={s.brand}>Familie</Text>
-        <Text style={s.tagline}>Kalender, Einkauf, Chat und Standort – an einem Ort, nur für euch.</Text>
+        <Text style={s.tagline}>Kalender, Einkauf, Aufgaben, Chat, Fotos und Karte – an einem Ort, nur für euch.</Text>
+
+        {IS_DEMO ? (
+          <Card style={s.demo}>
+            <Text style={s.demoTitle}>Demo zum Ausprobieren</Text>
+            <Text style={s.demoText}>
+              Tritt der Beispiel-Familie Muster bei: Mama, Papa, Leon und Mia warten schon mit Terminen, Einkaufslisten, Aufgaben,
+              Fotos und Chat. Alles bleibt auf diesem Gerät. Gib einfach deinen Namen ein.
+            </Text>
+          </Card>
+        ) : null}
 
         <View style={s.modes}>
           <Chip label="Familie gründen" active={mode === "create"} onPress={() => setMode("create")} />
@@ -66,7 +77,7 @@ export function Onboarding({ onSignedIn }: { onSignedIn: (serverUrl: string, s: 
             />
           )}
 
-          {showServer ? (
+          {IS_DEMO ? null : showServer ? (
             <Input
               label="Server-Adresse"
               value={serverUrl}
@@ -104,5 +115,8 @@ const s = StyleSheet.create({
   tagline: { color: theme.colors.textMuted, fontSize: 15, textAlign: "center", lineHeight: 22, marginBottom: theme.spacing(6) },
   modes: { flexDirection: "row", gap: theme.spacing(2), justifyContent: "center", marginBottom: theme.spacing(5) },
   link: { color: theme.colors.textFaint, fontSize: 12, textAlign: "center" },
+  demo: { gap: 6, borderColor: theme.colors.goldDim, marginBottom: theme.spacing(5) },
+  demoTitle: { color: theme.colors.goldBright, fontSize: 15, fontWeight: "700" },
+  demoText: { color: theme.colors.textMuted, fontSize: 14, lineHeight: 20 },
   hint: { color: theme.colors.textFaint, fontSize: 13, textAlign: "center", lineHeight: 19 },
 });

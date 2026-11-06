@@ -1,6 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { ApiError, createApi, type Api } from "./api";
+import { ApiError, createApi, isDemoUrl, type Api } from "./api";
+import { subscribeDemo } from "./demo/server";
 import { load, save } from "./storage";
 import type { Member, Session, Topic } from "./types";
 
@@ -133,6 +134,10 @@ function useRealtime(stored: Stored): boolean {
   const retry = useRef(0);
 
   useEffect(() => {
+    if (isDemoUrl(stored.serverUrl)) {
+      setLive(true);
+      return subscribeDemo((topic) => void queryClient.invalidateQueries({ queryKey: [TOPIC_KEYS[topic as Topic]] }));
+    }
     let ws: WebSocket | null = null;
     let timer: ReturnType<typeof setTimeout> | null = null;
     let stopped = false;

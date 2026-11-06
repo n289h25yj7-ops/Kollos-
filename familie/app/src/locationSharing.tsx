@@ -4,6 +4,7 @@ import * as Location from "expo-location";
 import { useQueryClient } from "@tanstack/react-query";
 import { useSession } from "./session";
 import { load, save } from "./storage";
+import { IS_DEMO } from "./config";
 
 const SHARE_KEY = "familie.shareLocation";
 
@@ -24,6 +25,14 @@ type Coords = { lat: number; lng: number; accuracy?: number };
  * Browser-API, weil expo-location dort beim Abmelden einen Fehler wirft.
  */
 async function watch(onPos: (c: Coords) => void): Promise<() => void> {
+  if (IS_DEMO) {
+    // Demo: ein Spaziergang durch Berlin-Mitte statt echtem GPS.
+    let i = 0;
+    const step = () => onPos({ lat: 52.5145 + Math.sin(i / 6) * 0.004, lng: 13.3501 + i++ * 0.0008, accuracy: 15 });
+    step();
+    const t = setInterval(step, 25_000);
+    return () => clearInterval(t);
+  }
   if (Platform.OS === "web") {
     const id = navigator.geolocation.watchPosition(
       (p) => onPos({ lat: p.coords.latitude, lng: p.coords.longitude, accuracy: p.coords.accuracy }),
@@ -62,7 +71,7 @@ export function LocationSharingProvider({ children }: { children: ReactNode }) {
     let cancelled = false;
     let last = 0;
     (async () => {
-      const perm = await Location.requestForegroundPermissionsAsync();
+      const perm = IS_DEMO ? { status: "granted" } : await Location.requestForegroundPermissionsAsync();
       if (perm.status !== "granted") {
         setError("Ohne Standort-Berechtigung kann nichts geteilt werden. Du kannst sie in den Einstellungen erlauben.");
         setSharingState(false);

@@ -23,9 +23,21 @@ export class ApiError extends Error {
   }
 }
 
+import { DEMO_URL, DemoError, demoPhotoUrl, demoRequest } from "./demo/server";
+
+export const isDemoUrl = (url: string) => url === DEMO_URL;
+
 export const normalizeUrl = (url: string) => url.trim().replace(/\/+$/, "");
 
 async function request<T>(baseUrl: string, method: string, path: string, token?: string, body?: unknown): Promise<T> {
+  if (isDemoUrl(baseUrl)) {
+    try {
+      return (await demoRequest(method, path, token, body)) as T;
+    } catch (e) {
+      if (e instanceof DemoError) throw new ApiError(e.status, e.message);
+      throw e;
+    }
+  }
   let res: Response;
   try {
     res = await fetch(normalizeUrl(baseUrl) + path, {
@@ -110,7 +122,8 @@ export function createApi(baseUrl: string, token: string) {
     updatePhoto: (id: string, caption: string) => r<Photo>("PATCH", `/photos/${id}`, { caption }),
     deletePhoto: (id: string) => r<void>("DELETE", `/photos/${id}`),
     /** Bild-URL mit Token als Query, weil <Image> im Web keine Header mitschicken kann. */
-    photoUrl: (id: string) => `${normalizeUrl(baseUrl)}/photos/${id}/file?token=${encodeURIComponent(token)}`,
+    photoUrl: (id: string) =>
+      isDemoUrl(baseUrl) ? demoPhotoUrl(id) : `${normalizeUrl(baseUrl)}/photos/${id}/file?token=${encodeURIComponent(token)}`,
   };
 }
 

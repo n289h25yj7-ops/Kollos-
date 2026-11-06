@@ -1,0 +1,47 @@
+{
+  "expo": {
+    "name": "Familie",
+    "slug": "familien-app",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "dark",
+    "scheme": "familie",
+    "splash": {
+      "resizeMode": "contain",
+      "backgroundColor": "#0b0b0d"
+    },
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "ios": {
+      "supportsTablet": true,
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "Damit deine Familie sieht, wo du gerade bist – nur wenn du das Teilen einschaltest."
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#0b0b0d"
+      },
+      "permissions": [
+        "ACCESS_COARSE_LOCATION",
+        "ACCESS_FINE_LOCATION"
+      ]
+    },
+    "web": {
+      "bundler": "metro"
+    },
+    "plugins": [
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Damit deine Familie sieht, wo du gerade bist – nur wenn du das Teilen einschaltest."
+        }
+      ],
+      "expo-asset"
+    ],
+    "extra": {
+      "apiBaseUrl": "http://localhost:4100"
+    }
+  }
+}

@@ -1,3 +1,6 @@
+> **Neu:** Im Ordner [`familie/`](familie/README.md) steckt die **Familien-App** mit
+> geteiltem Kalender, Einkaufslisten, Chat und Standort.
+
 # Gebraucht-Radar
 
 Eine **Preisvergleichs-/Meta-Suche für Gebrauchtwaren** – die Idee von Idealo,

@@ -1,4 +1,18 @@
-import type { CalendarEvent, ChatMessage, MemberLocation, Session, ShoppingItem, ShoppingList } from "./types";
+import type {
+  Album,
+  Balance,
+  CalendarEvent,
+  ChatMessage,
+  MemberLocation,
+  Photo,
+  PointsEntry,
+  Repeat,
+  Reward,
+  Session,
+  ShoppingItem,
+  ShoppingList,
+  Task,
+} from "./types";
 
 export class ApiError extends Error {
   constructor(
@@ -69,6 +83,34 @@ export function createApi(baseUrl: string, token: string) {
     shareLocation: (lat: number, lng: number, accuracy?: number) =>
       r<MemberLocation>("PUT", "/locations/me", { lat, lng, accuracy }),
     stopSharing: () => r<void>("DELETE", "/locations/me"),
+
+    registerPush: (token: string) => r<void>("POST", "/me/push-token", { token }),
+    unregisterPush: (token: string) => r<void>("DELETE", "/me/push-token", { token }),
+
+    tasks: () => r<Task[]>("GET", "/tasks"),
+    createTask: (t: { title: string; points: number; assigneeId?: string; due?: string; repeat: Repeat }) => r<Task>("POST", "/tasks", t),
+    updateTask: (id: string, t: Partial<Pick<Task, "title" | "points" | "assigneeId" | "due" | "repeat">>) => r<Task>("PATCH", `/tasks/${id}`, t),
+    deleteTask: (id: string) => r<void>("DELETE", `/tasks/${id}`),
+    completeTask: (id: string, memberId: string | undefined, today: string) =>
+      r<{ task: Task; entry: PointsEntry }>("POST", `/tasks/${id}/complete`, { memberId, today }),
+    uncompleteTask: (id: string) => r<Task>("POST", `/tasks/${id}/uncomplete`),
+    points: () => r<{ balances: Balance[]; history: PointsEntry[] }>("GET", "/points"),
+    rewards: () => r<Reward[]>("GET", "/rewards"),
+    createReward: (title: string, cost: number) => r<Reward>("POST", "/rewards", { title, cost }),
+    deleteReward: (id: string) => r<void>("DELETE", `/rewards/${id}`),
+    redeemReward: (id: string, memberId: string) => r<PointsEntry>("POST", `/rewards/${id}/redeem`, { memberId }),
+
+    albums: () => r<Album[]>("GET", "/albums"),
+    createAlbum: (name: string) => r<Album>("POST", "/albums", { name }),
+    renameAlbum: (id: string, name: string) => r<Album>("PATCH", `/albums/${id}`, { name }),
+    deleteAlbum: (id: string) => r<void>("DELETE", `/albums/${id}`),
+    photos: (albumId: string) => r<Photo[]>("GET", `/albums/${albumId}/photos`),
+    uploadPhoto: (albumId: string, p: { data: string; width?: number; height?: number; caption?: string }) =>
+      r<Photo>("POST", `/albums/${albumId}/photos`, p),
+    updatePhoto: (id: string, caption: string) => r<Photo>("PATCH", `/photos/${id}`, { caption }),
+    deletePhoto: (id: string) => r<void>("DELETE", `/photos/${id}`),
+    /** Bild-URL mit Token als Query, weil <Image> im Web keine Header mitschicken kann. */
+    photoUrl: (id: string) => `${normalizeUrl(baseUrl)}/photos/${id}/file?token=${encodeURIComponent(token)}`,
   };
 }
 

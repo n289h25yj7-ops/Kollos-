@@ -15,6 +15,11 @@ const empty = (): Database => ({
   items: [],
   messages: [],
   locations: [],
+  albums: [],
+  photos: [],
+  tasks: [],
+  points: [],
+  rewards: [],
 });
 
 export class Store {

@@ -1,0 +1,5 @@
+# Caddy holt sich das HTTPS-Zertifikat automatisch und leitet auch WebSockets weiter.
+{$DOMAIN} {
+	encode zstd gzip
+	reverse_proxy familie:4100
+}

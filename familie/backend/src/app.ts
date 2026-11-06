@@ -1,69 +1,67 @@
 import { randomBytes, randomUUID } from "node:crypto";
+import { existsSync } from "node:fs";
+import { join } from "node:path";
 import cors from "cors";
 import express, { type NextFunction, type Request, type Response } from "express";
+import type { Ctx, NotifyOptions } from "./context.js";
+import { registerPhotos } from "./features/photos.js";
+import { registerTasks } from "./features/tasks.js";
+import { HttpError, isoDate, now, str } from "./http.js";
+import { isExpoPushToken, type PushSender } from "./push.js";
 import type { Store } from "./store.js";
 import type { CalendarEvent, Member, MemberRecord, Topic } from "./types.js";
 
 export type Broadcast = (familyId: string, topic: Topic) => void;
 
+export interface AppOptions {
+  push?: PushSender;
+  uploadsDir?: string | null;
+  /** Ordner mit dem Web-Build der App; wird dann unter / mit ausgeliefert. */
+  webDir?: string | null;
+}
+
 const COLORS = ["#c9a86a", "#8fbf9f", "#8098c9", "#c98a8a", "#b48fc9", "#c9b86a", "#6ab8c9", "#c9906a"];
 const CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; // ohne 0/O/1/I
 const MAX_MESSAGES = 5000;
-
-class HttpError extends Error {
-  constructor(
-    readonly status: number,
-    message: string,
-  ) {
-    super(message);
-  }
-}
-
-const now = () => new Date().toISOString();
+const UPLOAD_PATH = /^\/albums\/[^/]+\/photos$/;
 
 function inviteCode(): string {
   const bytes = randomBytes(6);
   return Array.from(bytes, (b) => CODE_ALPHABET[b % CODE_ALPHABET.length]).join("");
 }
 
-function publicMember({ token: _token, ...m }: MemberRecord): Member {
+function publicMember({ token: _token, pushTokens: _push, ...m }: MemberRecord): Member {
   return m;
 }
 
-function str(value: unknown, field: string, { max = 500, optional = false } = {}): string | undefined {
-  if (value === undefined || value === null || value === "") {
-    if (optional) return undefined;
-    throw new HttpError(400, `Feld "${field}" fehlt.`);
-  }
-  if (typeof value !== "string") throw new HttpError(400, `Feld "${field}" muss Text sein.`);
-  const trimmed = value.trim();
-  if (!trimmed && !optional) throw new HttpError(400, `Feld "${field}" darf nicht leer sein.`);
-  if (trimmed.length > max) throw new HttpError(400, `Feld "${field}" ist zu lang (max. ${max}).`);
-  return trimmed || undefined;
-}
-
-function isoDate(value: unknown, field: string, optional = false): string | undefined {
-  const s = str(value, field, { max: 40, optional });
-  if (s === undefined) return undefined;
-  const d = new Date(s);
-  if (Number.isNaN(d.getTime())) throw new HttpError(400, `Feld "${field}" ist kein gueltiges Datum.`);
-  return d.toISOString();
-}
+const shortDate = (iso: string) =>
+  new Date(iso).toLocaleString("de-DE", { weekday: "short", day: "numeric", month: "numeric", hour: "2-digit", minute: "2-digit", timeZone: process.env.TZ || "Europe/Berlin" });
 
 type Authed = Request & { member: MemberRecord };
 
-export function createApp(store: Store, broadcast: Broadcast) {
+export function createApp(store: Store, broadcast: Broadcast, options: AppOptions = {}) {
   const { db } = store;
   const app = express();
+  // Hinter einem Reverse-Proxy (Caddy) die echte Client-IP verwenden.
+  if (process.env.TRUST_PROXY) app.set("trust proxy", Number(process.env.TRUST_PROXY) || 1);
+  app.disable("x-powered-by");
   app.use(cors());
-  app.use(express.json({ limit: "100kb" }));
+  // Fotos kommen als Base64 im JSON und duerfen groesser sein als alles andere.
+  const smallJson = express.json({ limit: "100kb" });
+  const uploadJson = express.json({ limit: "15mb" });
+  app.use((req, res, next) => (UPLOAD_PATH.test(req.path) ? uploadJson : smallJson)(req, res, next));
 
   const findMemberByToken = (token: string | undefined) =>
     token ? db.members.find((m) => m.token === token) : undefined;
 
+  /** Token aus dem Header – oder (nur fuer Bilder) aus ?token=, weil <Image> im Web keine Header setzen kann. */
   const auth = (req: Request, _res: Response, next: NextFunction) => {
     const header = req.header("authorization") ?? "";
-    const token = header.startsWith("Bearer ") ? header.slice(7) : undefined;
+    const token = header.startsWith("Bearer ")
+      ? header.slice(7)
+      : req.method === "GET" && typeof req.query.token === "string"
+        ? req.query.token
+        : undefined;
     const member = findMemberByToken(token);
     if (!member) return next(new HttpError(401, "Nicht angemeldet."));
     (req as Authed).member = member;
@@ -77,6 +75,24 @@ export function createApp(store: Store, broadcast: Broadcast) {
     broadcast(familyId, topic);
   };
 
+  const notify = (familyId: string, opts: NotifyOptions) => {
+    if (!options.push) return;
+    const targets = db.members.filter(
+      (m) => m.familyId === familyId && m.id !== opts.except && (!opts.only || opts.only.includes(m.id)),
+    );
+    const messages = targets.flatMap((m) =>
+      (m.pushTokens ?? []).map((to) => ({ to, title: opts.title, body: opts.body, data: opts.data })),
+    );
+    if (!messages.length) return;
+    void options.push(messages).then((invalid) => {
+      if (!invalid.length) return;
+      for (const m of targets) m.pushTokens = (m.pushTokens ?? []).filter((t) => !invalid.includes(t));
+      store.save();
+    });
+  };
+
+  const ctx: Ctx = { db, store, auth, me, changed, notify, uploadsDir: options.uploadsDir ?? null };
+
   const addMember = (familyId: string, name: string): MemberRecord => {
     const used = db.members.filter((m) => m.familyId === familyId).length;
     const member: MemberRecord = {
@@ -85,6 +101,7 @@ export function createApp(store: Store, broadcast: Broadcast) {
       name,
       color: COLORS[used % COLORS.length]!,
       token: randomBytes(24).toString("hex"),
+      pushTokens: [],
       createdAt: now(),
     };
     db.members.push(member);
@@ -111,19 +128,36 @@ export function createApp(store: Store, broadcast: Broadcast) {
     const family = { id: randomUUID(), name: familyName, inviteCode: inviteCode(), createdAt: now() };
     db.families.push(family);
     const member = addMember(family.id, memberName);
-    // Eine Start-Einkaufsliste, damit der Tab nicht leer ist.
+    // Startinhalte, damit die Tabs nicht leer sind.
     db.lists.push({ id: randomUUID(), familyId: family.id, name: "Einkauf", createdAt: now() });
+    for (const [title, cost] of [["Eis essen gehen", 50], ["30 Min. länger aufbleiben", 30], ["Film aussuchen", 20]] as const) {
+      db.rewards.push({ id: randomUUID(), familyId: family.id, title, cost, createdAt: now() });
+    }
     store.save();
     res.status(201).json(session(member));
   });
 
+  /** Bremse gegen das Durchprobieren von Einladungscodes: max. 10 Fehlversuche pro IP in 15 Min. */
+  const failedJoins = new Map<string, number[]>();
+  const joinLimited = (ip: string) => {
+    const recent = (failedJoins.get(ip) ?? []).filter((t) => Date.now() - t < 15 * 60_000);
+    failedJoins.set(ip, recent);
+    return recent.length >= 10;
+  };
+
   app.post("/families/join", (req, res) => {
+    const ip = req.ip ?? "?";
+    if (joinLimited(ip)) throw new HttpError(429, "Zu viele Versuche. Bitte in 15 Minuten erneut probieren.");
     const code = str(req.body?.inviteCode, "inviteCode", { max: 12 })!.toUpperCase().replace(/\s+/g, "");
     const memberName = str(req.body?.memberName, "memberName", { max: 40 })!;
     const family = db.families.find((f) => f.inviteCode === code);
-    if (!family) throw new HttpError(404, "Einladungscode unbekannt.");
+    if (!family) {
+      failedJoins.get(ip)!.push(Date.now());
+      throw new HttpError(404, "Einladungscode unbekannt.");
+    }
     const member = addMember(family.id, memberName);
     changed(family.id, "members");
+    notify(family.id, { except: member.id, title: family.name, body: `${member.name} ist der Familie beigetreten 🎉` });
     res.status(201).json(session(member));
   });
 
@@ -145,6 +179,24 @@ export function createApp(store: Store, broadcast: Broadcast) {
     db.locations = db.locations.filter((l) => l.memberId !== m.id);
     changed(m.familyId, "members");
     broadcast(m.familyId, "locations");
+    res.status(204).end();
+  });
+
+  /** Push-Token dieses Geraets anmelden (mehrere Geraete pro Person moeglich). */
+  app.post("/me/push-token", auth, (req, res) => {
+    const token = req.body?.token;
+    if (!isExpoPushToken(token)) throw new HttpError(400, "Ungueltiges Push-Token.");
+    for (const other of db.members) other.pushTokens = (other.pushTokens ?? []).filter((t) => t !== token);
+    const m = me(req);
+    m.pushTokens = [...(m.pushTokens ?? []), token].slice(-5);
+    store.save();
+    res.status(204).end();
+  });
+
+  app.delete("/me/push-token", auth, (req, res) => {
+    const m = me(req);
+    m.pushTokens = (m.pushTokens ?? []).filter((t) => t !== req.body?.token);
+    store.save();
     res.status(204).end();
   });
 
@@ -201,6 +253,13 @@ export function createApp(store: Store, broadcast: Broadcast) {
     if (event.end && event.end < event.start) throw new HttpError(400, "Ende liegt vor dem Beginn.");
     db.events.push(event);
     changed(m.familyId, "events");
+    notify(m.familyId, {
+      except: m.id,
+      only: event.memberIds.length ? event.memberIds : undefined,
+      title: `📅 ${event.title}`,
+      body: `${m.name} hat einen Termin eingetragen: ${event.allDay ? new Date(event.start).toLocaleDateString("de-DE") : shortDate(event.start)}`,
+      data: { tab: "calendar" },
+    });
     res.status(201).json(event);
   });
 
@@ -322,6 +381,7 @@ export function createApp(store: Store, broadcast: Broadcast) {
     db.messages.push(msg);
     if (db.messages.length > MAX_MESSAGES) db.messages.splice(0, db.messages.length - MAX_MESSAGES);
     changed(m.familyId, "messages");
+    notify(m.familyId, { except: m.id, title: m.name, body: msg.text.slice(0, 180), data: { tab: "chat" } });
     res.status(201).json(msg);
   });
 
@@ -354,11 +414,23 @@ export function createApp(store: Store, broadcast: Broadcast) {
     res.status(204).end();
   });
 
+  // ---------- Aufgaben & Fotos ----------
+  registerTasks(app, ctx);
+  registerPhotos(app, ctx);
+
+  // ---------- Web-App (optional, fuer den Online-Betrieb) ----------
+  const webDir = options.webDir;
+  if (webDir && existsSync(join(webDir, "index.html"))) {
+    app.use(express.static(webDir, { index: "index.html", maxAge: "1h" }));
+    app.get("*", (req, res, next) => (req.accepts("html") ? res.sendFile(join(webDir, "index.html")) : next()));
+  }
+
   // ---------- Fehlerbehandlung ----------
   app.use((_req, _res, next) => next(new HttpError(404, "Route nicht gefunden.")));
   app.use((err: unknown, _req: Request, res: Response, _next: NextFunction) => {
     if (err instanceof HttpError) return res.status(err.status).json({ error: err.message });
     if (err instanceof SyntaxError) return res.status(400).json({ error: "Ungueltiges JSON." });
+    if ((err as { type?: string })?.type === "entity.too.large") return res.status(413).json({ error: "Datei ist zu gross." });
     console.error(err);
     res.status(500).json({ error: "Interner Fehler." });
   });

@@ -65,4 +65,62 @@ export interface MemberLocation {
   updatedAt: string;
 }
 
-export type Topic = "members" | "events" | "lists" | "messages" | "locations";
+export type Topic = "members" | "events" | "lists" | "messages" | "locations" | "albums" | "tasks";
+
+export interface Album {
+  id: string;
+  name: string;
+  createdBy: string;
+  createdAt: string;
+  count: number;
+  coverId?: string;
+  updatedAt: string;
+}
+
+export interface Photo {
+  id: string;
+  albumId: string;
+  mime: string;
+  width?: number;
+  height?: number;
+  caption?: string;
+  uploadedBy: string;
+  createdAt: string;
+}
+
+export type Repeat = "none" | "daily" | "weekly";
+
+export interface Task {
+  id: string;
+  title: string;
+  assigneeId?: string;
+  points: number;
+  due?: string;
+  repeat: Repeat;
+  done: boolean;
+  createdBy: string;
+  createdAt: string;
+}
+
+export interface PointsEntry {
+  id: string;
+  memberId: string;
+  points: number;
+  kind: "task" | "reward";
+  title: string;
+  at: string;
+}
+
+export interface Balance {
+  memberId: string;
+  earned: number;
+  spent: number;
+  balance: number;
+  week: number;
+}
+
+export interface Reward {
+  id: string;
+  title: string;
+  cost: number;
+}

@@ -1,13 +1,17 @@
 import { createServer } from "node:http";
+import { join, resolve } from "node:path";
 import { WebSocket, WebSocketServer } from "ws";
 import { createApp } from "./app.js";
+import { createExpoPushSender } from "./push.js";
 import { Store } from "./store.js";
 import type { Topic } from "./types.js";
 
 const PORT = Number(process.env.PORT ?? 4100);
-const DATA_FILE = process.env.DATA_FILE ?? "data/db.json";
+const DATA_DIR = resolve(process.env.DATA_DIR ?? "data");
+const WEB_DIR = process.env.WEB_DIR ? resolve(process.env.WEB_DIR) : null;
+const PUSH = process.env.PUSH !== "off";
 
-const store = new Store(DATA_FILE);
+const store = new Store(join(DATA_DIR, "db.json"));
 
 /** Offene WebSocket-Verbindungen je Familie. */
 const sockets = new Map<string, Set<WebSocket>>();
@@ -19,7 +23,11 @@ const broadcast = (familyId: string, topic: Topic) => {
   }
 };
 
-const { app, findMemberByToken } = createApp(store, broadcast);
+const { app, findMemberByToken } = createApp(store, broadcast, {
+  push: PUSH ? createExpoPushSender() : undefined,
+  uploadsDir: join(DATA_DIR, "photos"),
+  webDir: WEB_DIR,
+});
 const server = createServer(app);
 
 // Echtzeit: Clients verbinden sich mit ws://host/ws?token=... und bekommen
@@ -44,7 +52,8 @@ wss.on("connection", (ws, req) => {
 });
 
 server.listen(PORT, () => {
-  console.log(`Familien-App-Backend laeuft auf http://localhost:${PORT} (Daten: ${DATA_FILE})`);
+  console.log(`Familien-App-Backend laeuft auf http://localhost:${PORT}`);
+  console.log(`  Daten: ${DATA_DIR}${WEB_DIR ? ` · Web-App: ${WEB_DIR}` : ""} · Push: ${PUSH ? "an" : "aus"}`);
 });
 
 const shutdown = () => {

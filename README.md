@@ -1,5 +1,6 @@
 > **Neu:** Im Ordner [`familie/`](familie/README.md) steckt die **Familien-App** mit
-> geteiltem Kalender, Einkaufslisten, Chat und Standort.
+> geteiltem Kalender, Einkaufslisten, Aufgaben & Punkten, Chat, Fotoalben, Karte
+> und Push-Benachrichtigungen – inkl. Docker-Setup für den Online-Betrieb.
 
 # Gebraucht-Radar
 

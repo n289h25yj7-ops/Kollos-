@@ -118,6 +118,8 @@ const TOPIC_KEYS: Record<Topic, string> = {
   lists: "lists",
   messages: "messages",
   locations: "locations",
+  albums: "albums",
+  tasks: "tasks",
 };
 
 /**

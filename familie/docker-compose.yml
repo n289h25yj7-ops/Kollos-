@@ -1,0 +1,30 @@
+# Online-Betrieb mit automatischem HTTPS (Let's Encrypt via Caddy).
+#   1. DOMAIN in .env setzen (siehe .env.example), DNS auf den Server zeigen lassen
+#   2. docker compose up -d --build
+services:
+  familie:
+    build: .
+    restart: unless-stopped
+    volumes:
+      - familie-data:/data          # Datenbank + Fotos – regelmaessig sichern!
+    environment:
+      - TZ=Europe/Berlin
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    depends_on: [familie]
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      - DOMAIN=${DOMAIN:?Bitte DOMAIN in .env setzen}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+
+volumes:
+  familie-data:
+  caddy-data:
+  caddy-config:

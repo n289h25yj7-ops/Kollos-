@@ -16,8 +16,11 @@
     "ios": {
       "supportsTablet": true,
       "infoPlist": {
-        "NSLocationWhenInUseUsageDescription": "Damit deine Familie sieht, wo du gerade bist – nur wenn du das Teilen einschaltest."
-      }
+        "NSLocationWhenInUseUsageDescription": "Damit deine Familie sieht, wo du gerade bist – nur wenn du das Teilen einschaltest.",
+        "NSPhotoLibraryUsageDescription": "Damit du Fotos in eure Familienalben hochladen kannst.",
+        "NSCameraUsageDescription": "Damit du Fotos direkt für eure Familienalben aufnehmen kannst."
+      },
+      "bundleIdentifier": "de.familie.app"
     },
     "android": {
       "adaptiveIcon": {
@@ -25,8 +28,11 @@
       },
       "permissions": [
         "ACCESS_COARSE_LOCATION",
-        "ACCESS_FINE_LOCATION"
-      ]
+        "ACCESS_FINE_LOCATION",
+        "CAMERA",
+        "POST_NOTIFICATIONS"
+      ],
+      "package": "de.familie.app"
     },
     "web": {
       "bundler": "metro"
@@ -36,6 +42,19 @@
         "expo-location",
         {
           "locationWhenInUsePermission": "Damit deine Familie sieht, wo du gerade bist – nur wenn du das Teilen einschaltest."
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Damit du Fotos in eure Familienalben hochladen kannst.",
+          "cameraPermission": "Damit du Fotos direkt für eure Familienalben aufnehmen kannst."
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "color": "#c9a86a"
         }
       ],
       "expo-asset"

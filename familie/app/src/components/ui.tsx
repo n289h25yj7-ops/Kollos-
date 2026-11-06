@@ -1,6 +1,8 @@
 import type { ReactNode } from "react";
 import {
   ActivityIndicator,
+  Modal,
+  ScrollView,
   Pressable,
   StyleSheet,
   Text,
@@ -12,10 +14,23 @@ import {
 } from "react-native";
 import { brandFont, theme } from "../theme";
 import type { Member } from "../types";
+import { useNav } from "../nav";
+import { useSession } from "../session";
 
 const c = theme.colors;
 
-export function ScreenHeader({ eyebrow, title, right }: { eyebrow?: string; title: string; right?: ReactNode }) {
+export function ScreenHeader({
+  eyebrow,
+  title,
+  right,
+  hideFamily,
+}: {
+  eyebrow?: string;
+  title: string;
+  right?: ReactNode;
+  /** Avatar-Knopf (oeffnet Familie & Einstellungen) ausblenden. */
+  hideFamily?: boolean;
+}) {
   return (
     <View style={styles.header}>
       <View style={{ flex: 1 }}>
@@ -25,7 +40,18 @@ export function ScreenHeader({ eyebrow, title, right }: { eyebrow?: string; titl
         </Text>
       </View>
       {right}
+      {hideFamily ? null : <FamilyButton />}
     </View>
+  );
+}
+
+function FamilyButton() {
+  const { session } = useSession();
+  const { openFamily } = useNav();
+  return (
+    <Pressable onPress={openFamily} accessibilityRole="button" accessibilityLabel="Familie & Einstellungen" hitSlop={8}>
+      <Avatar member={session.member} size={36} />
+    </Pressable>
   );
 }
 
@@ -127,6 +153,25 @@ export function Chip({ label, active, onPress, color }: { label: string; active:
   );
 }
 
+/** Von unten einfahrendes Bearbeitungs-Fenster. */
+export function Sheet({ eyebrow, title, onClose, children }: { eyebrow: string; title?: string; onClose: () => void; children: ReactNode }) {
+  return (
+    <Modal visible animationType="slide" transparent onRequestClose={onClose}>
+      <View style={styles.backdrop}>
+        <ScrollView style={styles.sheet} contentContainerStyle={{ gap: theme.spacing(4), paddingBottom: theme.spacing(8) }} keyboardShouldPersistTaps="handled">
+          <Text style={styles.eyebrow}>{eyebrow}</Text>
+          {title ? <Text style={styles.sheetTitle}>{title}</Text> : null}
+          {children}
+        </ScrollView>
+      </View>
+    </Modal>
+  );
+}
+
+export function Label({ children }: { children: ReactNode }) {
+  return <Text style={styles.label}>{children}</Text>;
+}
+
 export function Empty({ icon, title, text }: { icon: string; title: string; text?: string }) {
   return (
     <View style={styles.empty}>
@@ -209,4 +254,18 @@ export const styles = StyleSheet.create({
   emptyTitle: { color: c.text, fontSize: 17, fontFamily: brandFont, textAlign: "center" },
   emptyText: { color: c.textMuted, fontSize: 14, textAlign: "center", lineHeight: 20 },
   error: { color: c.danger, fontSize: 14 },
+  backdrop: { flex: 1, backgroundColor: "rgba(0,0,0,0.6)", justifyContent: "flex-end" },
+  sheet: {
+    maxHeight: "92%",
+    width: "100%",
+    maxWidth: 640,
+    alignSelf: "center",
+    backgroundColor: c.surface,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    borderWidth: 1,
+    borderColor: c.hairline,
+    padding: theme.spacing(5),
+  },
+  sheetTitle: { color: c.text, fontSize: 22, fontWeight: "600", marginTop: -8 },
 });

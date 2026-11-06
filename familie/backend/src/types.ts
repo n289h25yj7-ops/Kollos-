@@ -20,6 +20,8 @@ export interface Member {
 /** Interner Datensatz inkl. geheimem Token (wird nie an andere Mitglieder ausgeliefert). */
 export interface MemberRecord extends Member {
   token: string;
+  /** Expo-Push-Tokens der Geraete dieses Mitglieds. */
+  pushTokens?: string[];
 }
 
 export interface CalendarEvent {
@@ -70,6 +72,66 @@ export interface MemberLocation {
   updatedAt: string;
 }
 
+export interface Album {
+  id: string;
+  familyId: string;
+  name: string;
+  createdBy: string;
+  createdAt: string;
+}
+
+export interface Photo {
+  id: string;
+  familyId: string;
+  albumId: string;
+  /** Dateiname im Upload-Ordner. */
+  file: string;
+  mime: string;
+  width?: number;
+  height?: number;
+  caption?: string;
+  uploadedBy: string;
+  createdAt: string;
+}
+
+export type Repeat = "none" | "daily" | "weekly";
+
+export interface Task {
+  id: string;
+  familyId: string;
+  title: string;
+  /** Zustaendig; leer = wer zuerst kommt. */
+  assigneeId?: string;
+  points: number;
+  /** Faellig am (YYYY-MM-DD). */
+  due?: string;
+  repeat: Repeat;
+  /** Nur bei einmaligen Aufgaben; wiederkehrende ruecken stattdessen weiter. */
+  done: boolean;
+  createdBy: string;
+  createdAt: string;
+}
+
+/** Punkte-Buchung: positiv = erledigte Aufgabe, negativ = eingeloeste Belohnung. */
+export interface PointsEntry {
+  id: string;
+  familyId: string;
+  memberId: string;
+  points: number;
+  kind: "task" | "reward";
+  refId: string;
+  title: string;
+  at: string;
+}
+
+export interface Reward {
+  id: string;
+  familyId: string;
+  title: string;
+  cost: number;
+  createdAt: string;
+}
+
 export interface Database {
   families: Family[];
   members: MemberRecord[];
@@ -78,7 +140,12 @@ export interface Database {
   items: ShoppingItem[];
   messages: ChatMessage[];
   locations: MemberLocation[];
+  albums: Album[];
+  photos: Photo[];
+  tasks: Task[];
+  points: PointsEntry[];
+  rewards: Reward[];
 }
 
 /** Themen, zu denen der Server Echtzeit-Hinweise verschickt. */
-export type Topic = "members" | "events" | "lists" | "messages" | "locations";
+export type Topic = "members" | "events" | "lists" | "messages" | "locations" | "albums" | "tasks";

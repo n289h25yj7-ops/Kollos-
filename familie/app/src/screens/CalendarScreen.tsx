@@ -47,25 +47,20 @@ export function CalendarScreen() {
 
   return (
     <View style={{ flex: 1 }}>
-      <ScreenHeader
-        eyebrow={`Kalender · ${cursor.y}`}
-        title={MONTHS[cursor.m]!}
-        right={
-          <View style={{ flexDirection: "row", gap: 6 }}>
-            <Button small variant="ghost" label="‹" onPress={() => shiftMonth(-1)} />
-            <Button
-              small
-              variant="ghost"
-              label="Heute"
-              onPress={() => {
-                setCursor({ y: today.getFullYear(), m: today.getMonth() });
-                setSelected(today);
-              }}
-            />
-            <Button small variant="ghost" label="›" onPress={() => shiftMonth(1)} />
-          </View>
-        }
-      />
+      <ScreenHeader eyebrow={`Kalender · ${cursor.y}`} title={MONTHS[cursor.m]!} />
+      <View style={s.nav}>
+        <Button small variant="ghost" label="‹" onPress={() => shiftMonth(-1)} />
+        <Button
+          small
+          variant="ghost"
+          label="Heute"
+          onPress={() => {
+            setCursor({ y: today.getFullYear(), m: today.getMonth() });
+            setSelected(today);
+          }}
+        />
+        <Button small variant="ghost" label="›" onPress={() => shiftMonth(1)} />
+      </View>
       <ScrollView contentContainerStyle={{ paddingHorizontal: theme.spacing(4), paddingBottom: theme.spacing(24) }}>
         <View style={s.weekRow}>
           {WEEKDAYS_SHORT.map((w) => (
@@ -237,6 +232,7 @@ function EventEditor({ day, event, onClose }: { day: Date; event?: CalendarEvent
 }
 
 const s = StyleSheet.create({
+  nav: { flexDirection: "row", gap: 6, paddingHorizontal: theme.spacing(5), marginBottom: theme.spacing(3) },
   weekRow: { flexDirection: "row", marginBottom: 4 },
   weekday: { flex: 1, textAlign: "center", color: c.textFaint, fontSize: 11, letterSpacing: 1.2, textTransform: "uppercase" },
   grid: { flexDirection: "row", flexWrap: "wrap" },

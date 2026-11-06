@@ -1,9 +1,10 @@
 import { useState } from "react";
-import { Alert, Platform, ScrollView, Share, StyleSheet, Text, View } from "react-native";
+import { Alert, Platform, ScrollView, Share, StyleSheet, Switch, Text, View } from "react-native";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useSession } from "../session";
 import { theme } from "../theme";
-import { Avatar, Button, Card, ErrorText, Input, ScreenHeader } from "../components/ui";
+import { Avatar, Button, Card, ErrorText, Input, Label, ScreenHeader } from "../components/ui";
+import { PUSH_LABEL, useNotifications } from "../notifications";
 
 const c = theme.colors;
 
@@ -18,11 +19,12 @@ function ask(title: string, text: string, yes: string, onYes: () => void) {
   ]);
 }
 
-export function FamilyScreen() {
+export function FamilyScreen({ onClose }: { onClose: () => void }) {
   const { api, session, members, signOut, serverUrl, live } = useSession();
   const qc = useQueryClient();
   const [name, setName] = useState(session.member.name);
   const code = session.family.inviteCode;
+  const notif = useNotifications();
 
   const rename = useMutation({ mutationFn: () => api.updateMe({ name: name.trim() }), onSuccess: (s) => qc.setQueryData(["me"], s) });
   const newCode = useMutation({ mutationFn: api.newInviteCode, onSuccess: () => qc.invalidateQueries({ queryKey: ["me"] }) });
@@ -35,7 +37,7 @@ export function FamilyScreen() {
 
   return (
     <View style={{ flex: 1 }}>
-      <ScreenHeader eyebrow="Familie" title={session.family.name} />
+      <ScreenHeader eyebrow="Familie & Einstellungen" title={session.family.name} hideFamily right={<Button small variant="ghost" label="Fertig" onPress={onClose} />} />
       <ScrollView contentContainerStyle={{ paddingHorizontal: theme.spacing(4), paddingBottom: theme.spacing(24), gap: theme.spacing(4) }}>
         <Card style={{ alignItems: "center", gap: theme.spacing(2), borderColor: c.goldDim }}>
           <Text style={s.label}>Einladungscode</Text>
@@ -72,6 +74,22 @@ export function FamilyScreen() {
           <ErrorText error={rename.error ?? newCode.error ?? leave.error} />
         </View>
 
+        <View style={{ gap: theme.spacing(2) }}>
+          <Label>Benachrichtigungen</Label>
+          <Card style={{ gap: theme.spacing(3) }}>
+            <Text style={s.hint2}>{PUSH_LABEL[notif.push]}</Text>
+            {Platform.OS !== "web" ? (
+              <View style={s.switchRow}>
+                <View style={{ flex: 1 }}>
+                  <Text style={s.name}>Termin-Erinnerungen</Text>
+                  <Text style={s.hint2}>30 Min. vorher, ganztägige um 8 Uhr</Text>
+                </View>
+                <Switch value={notif.reminders} onValueChange={notif.setReminders} trackColor={{ true: c.gold, false: c.surface3 }} thumbColor={c.text} />
+              </View>
+            ) : null}
+          </Card>
+        </View>
+
         <Text style={s.server}>
           {live ? "● Verbunden" : "○ Nicht verbunden"} · {serverUrl}
         </Text>
@@ -92,5 +110,7 @@ const s = StyleSheet.create({
   member: { flexDirection: "row", alignItems: "center", gap: theme.spacing(3), paddingVertical: theme.spacing(3) },
   name: { color: c.text, fontSize: 16, flex: 1 },
   you: { color: c.gold, fontSize: 12, fontWeight: "700" },
+  hint2: { color: c.textMuted, fontSize: 13, lineHeight: 18 },
+  switchRow: { flexDirection: "row", alignItems: "center", gap: theme.spacing(3) },
   server: { color: c.textFaint, fontSize: 12, textAlign: "center" },
 });

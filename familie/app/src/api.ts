@@ -1,6 +1,9 @@
 import type {
   Album,
   Balance,
+  Birthday,
+  Meal,
+  Recipe,
   CalendarEvent,
   ChatMessage,
   MemberLocation,
@@ -121,6 +124,20 @@ export function createApi(baseUrl: string, token: string) {
       r<Photo>("POST", `/albums/${albumId}/photos`, p),
     updatePhoto: (id: string, caption: string) => r<Photo>("PATCH", `/photos/${id}`, { caption }),
     deletePhoto: (id: string) => r<void>("DELETE", `/photos/${id}`),
+    recipes: () => r<Recipe[]>("GET", "/recipes"),
+    createRecipe: (rec: { name: string; ingredients: string[]; notes?: string }) => r<Recipe>("POST", "/recipes", rec),
+    updateRecipe: (id: string, rec: { name?: string; ingredients?: string[]; notes?: string }) => r<Recipe>("PATCH", `/recipes/${id}`, rec),
+    deleteRecipe: (id: string) => r<void>("DELETE", `/recipes/${id}`),
+    meals: (from: string, to: string) => r<Meal[]>("GET", `/meals?from=${from}&to=${to}`),
+    setMeal: (date: string, meal: { title?: string; recipeId?: string; cookId?: string }) => r<Meal>("PUT", `/meals/${date}`, meal),
+    clearMeal: (date: string) => r<void>("DELETE", `/meals/${date}`),
+    mealsToShopping: (from: string, to: string, listId?: string) =>
+      r<{ listId: string; listName: string; added: string[]; skipped: number }>("POST", "/meals/to-shopping", { from, to, listId }),
+
+    birthdays: () => r<Birthday[]>("GET", "/birthdays"),
+    createBirthday: (b: { name: string; date: string; year?: number }) => r<Birthday>("POST", "/birthdays", b),
+    deleteBirthday: (id: string) => r<void>("DELETE", `/birthdays/${id}`),
+
     /** Bild-URL mit Token als Query, weil <Image> im Web keine Header mitschicken kann. */
     photoUrl: (id: string) =>
       isDemoUrl(baseUrl) ? demoPhotoUrl(id) : `${normalizeUrl(baseUrl)}/photos/${id}/file?token=${encodeURIComponent(token)}`,

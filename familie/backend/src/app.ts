@@ -6,10 +6,14 @@ import express, { type NextFunction, type Request, type Response } from "express
 import type { Ctx, NotifyOptions } from "./context.js";
 import { registerPhotos } from "./features/photos.js";
 import { registerTasks } from "./features/tasks.js";
-import { HttpError, isoDate, now, str } from "./http.js";
+import { registerMeals, seedRecipes } from "./features/meals.js";
+import { registerBirthdays } from "./features/birthdays.js";
+import { HttpError, day, isoDate, now, str } from "./http.js";
 import { isExpoPushToken, type PushSender } from "./push.js";
 import type { Store } from "./store.js";
-import type { CalendarEvent, Member, MemberRecord, Topic } from "./types.js";
+import type { CalendarEvent, EventRepeat, Member, MemberRecord, Topic } from "./types.js";
+
+const EVENT_REPEATS: EventRepeat[] = ["none", "weekly", "biweekly", "monthly", "yearly"];
 
 export type Broadcast = (familyId: string, topic: Topic) => void;
 
@@ -133,6 +137,7 @@ export function createApp(store: Store, broadcast: Broadcast, options: AppOption
     for (const [title, cost] of [["Eis essen gehen", 50], ["30 Min. länger aufbleiben", 30], ["Film aussuchen", 20]] as const) {
       db.rewards.push({ id: randomUUID(), familyId: family.id, title, cost, createdAt: now() });
     }
+    seedRecipes(db, family.id, member.id);
     store.save();
     res.status(201).json(session(member));
   });
@@ -220,6 +225,11 @@ export function createApp(store: Store, broadcast: Broadcast, options: AppOption
       const valid = new Set(db.members.filter((m) => m.familyId === familyId).map((m) => m.id));
       out.memberIds = body.memberIds.filter((id): id is string => typeof id === "string" && valid.has(id));
     }
+    if (body.repeat !== undefined) {
+      if (!EVENT_REPEATS.includes(body.repeat as EventRepeat)) throw new HttpError(400, `Feld "repeat" ist ungueltig.`);
+      out.repeat = body.repeat as EventRepeat;
+    }
+    if (body.repeatUntil !== undefined) out.repeatUntil = day(body.repeatUntil, "repeatUntil", true);
     return out;
   };
 
@@ -227,9 +237,12 @@ export function createApp(store: Store, broadcast: Broadcast, options: AppOption
     const familyId = me(req).familyId;
     const from = isoDate(req.query.from, "from", true);
     const to = isoDate(req.query.to, "to", true);
+    // Serien werden mitgeliefert, sobald sie vor dem Zeitraum-Ende beginnen;
+    // die einzelnen Vorkommen berechnet die App in ihrer eigenen Zeitzone.
+    const repeating = (e: CalendarEvent) => e.repeat && e.repeat !== "none";
     const events = db.events
       .filter((e) => e.familyId === familyId)
-      .filter((e) => !from || (e.end ?? e.start) >= from)
+      .filter((e) => !from || (repeating(e) ? !e.repeatUntil || e.repeatUntil >= from.slice(0, 10) : (e.end ?? e.start) >= from))
       .filter((e) => !to || e.start <= to)
       .sort((a, b) => a.start.localeCompare(b.start));
     res.json(events);
@@ -247,6 +260,8 @@ export function createApp(store: Store, broadcast: Broadcast, options: AppOption
       allDay: data.allDay ?? false,
       notes: data.notes,
       memberIds: data.memberIds ?? [],
+      repeat: data.repeat ?? "none",
+      repeatUntil: data.repeatUntil,
       createdBy: m.id,
       createdAt: now(),
     };
@@ -417,6 +432,8 @@ export function createApp(store: Store, broadcast: Broadcast, options: AppOption
   // ---------- Aufgaben & Fotos ----------
   registerTasks(app, ctx);
   registerPhotos(app, ctx);
+  registerMeals(app, ctx);
+  registerBirthdays(app, ctx);
 
   // ---------- Web-App (optional, fuer den Online-Betrieb) ----------
   const webDir = options.webDir;

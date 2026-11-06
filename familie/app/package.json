@@ -9,7 +9,8 @@
     "ios": "expo start --ios",
     "web": "expo start --web",
     "typecheck": "tsc --noEmit",
-    "export:demo": "EXPO_PUBLIC_DEMO=1 expo export --platform web --output-dir dist-demo"
+    "export:demo": "EXPO_PUBLIC_DEMO=1 expo export --clear --platform web --output-dir dist-demo",
+    "export:web": "expo export --clear --platform web --output-dir dist"
   },
   "dependencies": {
     "@expo/metro-runtime": "~4.0.0",

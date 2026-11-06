@@ -5,6 +5,7 @@ import * as Device from "expo-device";
 import * as Notifications from "expo-notifications";
 import { useQuery } from "@tanstack/react-query";
 import { addDays, startOfDay, time } from "./format";
+import { birthdayLabel, birthdaysInRange, expandEvents } from "./recurrence";
 import type { Tab } from "./nav";
 import { useSession } from "./session";
 import { load, save } from "./storage";
@@ -99,6 +100,7 @@ export function NotificationsProvider({ onOpenTab, children }: { onOpenTab: (t: 
   const from = startOfDay(new Date()).toISOString();
   const to = addDays(new Date(), 14).toISOString();
   const events = useQuery({ queryKey: ["events", "reminders", from], queryFn: () => api.events(from, to), enabled: native });
+  const birthdays = useQuery({ queryKey: ["birthdays"], queryFn: api.birthdays, enabled: native });
 
   useEffect(() => {
     if (!native || !events.data) return;
@@ -111,8 +113,27 @@ export function NotificationsProvider({ onOpenTab, children }: { onOpenTab: (t: 
           .map((n) => Notifications.cancelScheduledNotificationAsync(n.identifier)),
       );
       if (cancelled || !reminders || !(await ensurePermission())) return;
-      const mine = events.data.filter((e) => e.memberIds.length === 0 || e.memberIds.includes(session.member.id));
-      for (const e of mine.slice(0, 50)) {
+      const start0 = startOfDay(new Date());
+      const occurrences = expandEvents(events.data, start0, addDays(start0, 14));
+      const mine = occurrences.filter((e) => e.memberIds.length === 0 || e.memberIds.includes(session.member.id));
+      // Geburtstage: eine Woche vorher (9 Uhr) und am Tag selbst (8 Uhr).
+      for (const o of birthdaysInRange(birthdays.data ?? [], start0, addDays(start0, 21))) {
+        const y = o.date.getFullYear(),
+          m = o.date.getMonth(),
+          d = o.date.getDate();
+        const plans: [Date, string, string][] = [
+          [new Date(y, m, d - 7, 9, 0), `🎁 In einer Woche: ${birthdayLabel(o)}`, "Zeit, an ein Geschenk zu denken."],
+          [new Date(y, m, d, 8, 0), `🎂 Heute: ${birthdayLabel(o)}!`, "Gratulieren nicht vergessen 💛"],
+        ];
+        for (const [when, title, body] of plans) {
+          if (when.getTime() <= Date.now()) continue;
+          await Notifications.scheduleNotificationAsync({
+            content: { title, body, data: { kind: "event-reminder", tab: "today" } },
+            trigger: { type: Notifications.SchedulableTriggerInputTypes.DATE, date: when },
+          });
+        }
+      }
+      for (const e of mine.slice(0, 40)) {
         const start = new Date(e.start);
         const at = e.allDay
           ? new Date(start.getFullYear(), start.getMonth(), start.getDate(), 8, 0)
@@ -131,7 +152,7 @@ export function NotificationsProvider({ onOpenTab, children }: { onOpenTab: (t: 
     return () => {
       cancelled = true;
     };
-  }, [events.data, reminders, session.member.id]);
+  }, [events.data, birthdays.data, reminders, session.member.id]);
 
   return <Ctx.Provider value={{ push, reminders, setReminders }}>{children}</Ctx.Provider>;
 }

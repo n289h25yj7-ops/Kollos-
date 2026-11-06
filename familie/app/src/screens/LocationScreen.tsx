@@ -3,6 +3,7 @@ import { Linking, Platform, Pressable, ScrollView, StyleSheet, Switch, Text, Vie
 import { useQuery } from "@tanstack/react-query";
 import { useSession } from "../session";
 import { useLocationSharing } from "../locationSharing";
+import { useNav } from "../nav";
 import { theme } from "../theme";
 import { Avatar, Button, Card, Empty, ErrorText, ScreenHeader } from "../components/ui";
 import { ago, distanceKm, formatDistance } from "../format";
@@ -26,6 +27,7 @@ function openInMaps(lat: number, lng: number, label: string) {
 export function LocationScreen() {
   const { api, session, members, memberById } = useSession();
   const { sharing, setSharing: setShare, error } = useLocationSharing();
+  const { setTab } = useNav();
   const [focus, setFocus] = useState<string | null>(null);
   const { height: screenH } = useWindowDimensions();
   const locations = useQuery({ queryKey: ["locations"], queryFn: api.locations, refetchInterval: 60_000 });
@@ -51,7 +53,7 @@ export function LocationScreen() {
 
   return (
     <View style={{ flex: 1 }}>
-      <ScreenHeader eyebrow="Karte" title="Wo sind alle?" />
+      <ScreenHeader eyebrow="Karte" title="Wo sind alle?" hideFamily right={<Button small variant="ghost" label="‹ Heute" onPress={() => setTab("today")} />} />
       <ScrollView contentContainerStyle={{ paddingHorizontal: theme.spacing(4), paddingBottom: theme.spacing(24), gap: theme.spacing(3) }}>
         {pins.length ? (
           <FamilyMap pins={pins} height={Math.round(Math.min(380, screenH * 0.4))} focusId={focus} />

@@ -3,8 +3,10 @@ import { Modal, Pressable, ScrollView, StyleSheet, Switch, Text, View } from "re
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useSession } from "../session";
 import { theme } from "../theme";
-import type { CalendarEvent } from "../types";
-import { Avatar, Button, Card, Chip, Empty, ErrorText, Input, ScreenHeader } from "../components/ui";
+import type { CalendarEvent, EventRepeat } from "../types";
+import { Avatar, Button, Card, Chip, Empty, ErrorText, Input, Label, ScreenHeader, Sheet } from "../components/ui";
+import { REPEAT_LABELS, birthdayLabel, birthdaysInRange, expandEvents, type BirthdayOccurrence } from "../recurrence";
+import { confirmAction } from "../components/confirm";
 import { MONTHS, WEEKDAYS_SHORT, addDays, dayKey, longDate, monthGrid, parseTime, sameDay, startOfDay, time } from "../format";
 
 const c = theme.colors;
@@ -26,19 +28,29 @@ export function CalendarScreen() {
   const [cursor, setCursor] = useState({ y: today.getFullYear(), m: today.getMonth() });
   const [selected, setSelected] = useState(today);
   const [editing, setEditing] = useState<CalendarEvent | "new" | null>(null);
+  const [birthdaysOpen, setBirthdaysOpen] = useState(false);
 
   const grid = useMemo(() => monthGrid(cursor.y, cursor.m), [cursor]);
   const from = grid[0]!.toISOString();
   const to = addDays(grid[41]!, 1).toISOString();
   const events = useQuery({ queryKey: ["events", from, to], queryFn: () => api.events(from, to) });
+  const birthdays = useQuery({ queryKey: ["birthdays"], queryFn: api.birthdays });
 
   const byDay = useMemo(() => {
     const map = new Map<string, CalendarEvent[]>();
-    for (const e of events.data ?? []) for (const k of daysOf(e)) map.set(k, [...(map.get(k) ?? []), e]);
+    const expanded = expandEvents(events.data ?? [], grid[0]!, addDays(grid[41]!, 1));
+    for (const e of expanded) for (const k of daysOf(e)) map.set(k, [...(map.get(k) ?? []), e]);
     return map;
-  }, [events.data]);
+  }, [events.data, grid]);
+
+  const bdays = useMemo(() => {
+    const map = new Map<string, BirthdayOccurrence[]>();
+    for (const o of birthdaysInRange(birthdays.data ?? [], grid[0]!, grid[41]!)) map.set(dayKey(o.date), [...(map.get(dayKey(o.date)) ?? []), o]);
+    return map;
+  }, [birthdays.data, grid]);
 
   const dayEvents = byDay.get(dayKey(selected)) ?? [];
+  const dayBirthdays = bdays.get(dayKey(selected)) ?? [];
   const shiftMonth = (n: number) =>
     setCursor(({ y, m }) => {
       const d = new Date(y, m + n, 1);
@@ -60,6 +72,8 @@ export function CalendarScreen() {
           }}
         />
         <Button small variant="ghost" label="›" onPress={() => shiftMonth(1)} />
+        <View style={{ flex: 1 }} />
+        <Button small variant="ghost" label="🎂 Geburtstage" onPress={() => setBirthdaysOpen(true)} />
       </View>
       <ScrollView contentContainerStyle={{ paddingHorizontal: theme.spacing(4), paddingBottom: theme.spacing(24) }}>
         <View style={s.weekRow}>
@@ -76,6 +90,7 @@ export function CalendarScreen() {
             const isSel = sameDay(d, selected);
             const isToday = sameDay(d, today);
             const dots = (byDay.get(k) ?? []).slice(0, 3);
+            const hasBirthday = bdays.has(k);
             return (
               <Pressable key={k} style={s.cell} onPress={() => setSelected(d)} accessibilityLabel={longDate(d)}>
                 <View style={[s.dayNum, isSel && s.daySel, !isSel && isToday && s.dayToday]}>
@@ -84,6 +99,7 @@ export function CalendarScreen() {
                   </Text>
                 </View>
                 <View style={s.dots}>
+                  {hasBirthday ? <Text style={s.cake}>🎂</Text> : null}
                   {dots.map((e) => (
                     <View key={e.id} style={[s.dot, { backgroundColor: memberById(e.memberIds[0] ?? "")?.color ?? c.gold }]} />
                   ))}
@@ -98,7 +114,13 @@ export function CalendarScreen() {
           <Button small label="+ Termin" onPress={() => setEditing("new")} />
         </View>
         <ErrorText error={events.error} />
-        {dayEvents.length === 0 ? (
+        {dayBirthdays.map((o) => (
+          <Card key={o.birthday.id} style={[s.event, s.birthday]}>
+            <Text style={{ fontSize: 22 }}>🎂</Text>
+            <Text style={[s.eventTitle, { flex: 1 }]}>{birthdayLabel(o)}</Text>
+          </Card>
+        ))}
+        {dayEvents.length === 0 && dayBirthdays.length === 0 ? (
           <Empty icon="☾" title="Nichts geplant" text="Tippe auf „+ Termin“, um etwas für die Familie einzutragen." />
         ) : (
           <View style={{ gap: theme.spacing(2.5) }}>
@@ -110,7 +132,10 @@ export function CalendarScreen() {
                     {!e.allDay && e.end ? <Text style={s.eventTimeEnd}>{time(e.end)}</Text> : null}
                   </View>
                   <View style={{ flex: 1, gap: 4 }}>
-                    <Text style={s.eventTitle}>{e.title}</Text>
+                    <Text style={s.eventTitle}>
+                      {e.title}
+                      {e.repeat && e.repeat !== "none" ? <Text style={s.repeatMark}> ↻</Text> : null}
+                    </Text>
                     {e.notes ? (
                       <Text style={s.eventNotes} numberOfLines={2}>
                         {e.notes}
@@ -138,6 +163,7 @@ export function CalendarScreen() {
       {editing ? (
         <EventEditor day={selected} event={editing === "new" ? undefined : editing} onClose={() => setEditing(null)} />
       ) : null}
+      {birthdaysOpen ? <BirthdaySheet onClose={() => setBirthdaysOpen(false)} /> : null}
     </View>
   );
 }
@@ -151,8 +177,11 @@ function EventEditor({ day, event, onClose }: { day: Date; event?: CalendarEvent
   const [endTime, setEndTime] = useState(event?.end && !event.allDay ? time(event.end) : "");
   const [notes, setNotes] = useState(event?.notes ?? "");
   const [who, setWho] = useState<string[]>(event?.memberIds ?? []);
+  const [repeat, setRepeat] = useState<EventRepeat>(event?.repeat ?? "none");
   const [error, setError] = useState<string | null>(null);
-  const baseDay = event ? startOfDay(new Date(event.start)) : day;
+  /** Bei Serien wird immer die ganze Serie bearbeitet – gespeichert wird am Tag des ersten Termins. */
+  const shownDay = event ? startOfDay(new Date(event.start)) : day;
+  const baseDay = event ? startOfDay(new Date(event.seriesStart ?? event.start)) : day;
 
   const done = () => {
     void qc.invalidateQueries({ queryKey: ["events"] });
@@ -178,7 +207,7 @@ function EventEditor({ day, event, onClose }: { day: Date; event?: CalendarEvent
           if (end < start) throw new Error("Das Ende liegt vor dem Beginn.");
         }
       }
-      const body = { title: title.trim(), start, end, allDay, notes: notes.trim() || undefined, memberIds: who };
+      const body = { title: title.trim(), start, end, allDay, notes: notes.trim() || undefined, memberIds: who, repeat };
       return event ? api.updateEvent(event.id, body) : api.createEvent(body);
     },
     onSuccess: done,
@@ -193,7 +222,8 @@ function EventEditor({ day, event, onClose }: { day: Date; event?: CalendarEvent
       <View style={s.backdrop}>
         <ScrollView style={s.sheet} contentContainerStyle={{ gap: theme.spacing(4), paddingBottom: theme.spacing(8) }} keyboardShouldPersistTaps="handled">
           <Text style={s.sheetEyebrow}>{event ? "Termin bearbeiten" : "Neuer Termin"}</Text>
-          <Text style={s.sheetTitle}>{longDate(baseDay)}</Text>
+          <Text style={s.sheetTitle}>{longDate(shownDay)}</Text>
+          {event?.seriesStart ? <Text style={s.seriesHint}>Teil einer Serie – Änderungen gelten für alle Termine.</Text> : null}
           <Input label="Titel" value={title} onChangeText={setTitle} placeholder="z. B. Fußballtraining" maxLength={120} autoFocus={!event} />
           <View style={s.row}>
             <Text style={s.rowLabel}>Ganztägig</Text>
@@ -209,6 +239,14 @@ function EventEditor({ day, event, onClose }: { day: Date; event?: CalendarEvent
               </View>
             </View>
           ) : null}
+          <View style={{ gap: 8 }}>
+            <Text style={s.label}>Wiederholen</Text>
+            <View style={s.chips}>
+              {(Object.keys(REPEAT_LABELS) as EventRepeat[]).map((r) => (
+                <Chip key={r} label={REPEAT_LABELS[r]!} active={repeat === r} onPress={() => setRepeat(r)} />
+              ))}
+            </View>
+          </View>
           <View style={{ gap: 8 }}>
             <Text style={s.label}>Für wen?</Text>
             <View style={s.chips}>
@@ -231,6 +269,76 @@ function EventEditor({ day, event, onClose }: { day: Date; event?: CalendarEvent
   );
 }
 
+const pad2 = (n: number) => String(n).padStart(2, "0");
+
+/** "13.3." / "13.03" / "13.3.1946" -> { date: "03-13", year? } */
+function parseBirthday(input: string): { date: string; year?: number } | null {
+  const m = input.trim().match(/^(\d{1,2})\.(\d{1,2})\.?(\d{4})?$/);
+  if (!m) return null;
+  const d = Number(m[1]);
+  const mo = Number(m[2]);
+  if (mo < 1 || mo > 12 || d < 1 || d > 31) return null;
+  return { date: `${pad2(mo)}-${pad2(d)}`, year: m[3] ? Number(m[3]) : undefined };
+}
+
+function BirthdaySheet({ onClose }: { onClose: () => void }) {
+  const { api } = useSession();
+  const qc = useQueryClient();
+  const birthdays = useQuery({ queryKey: ["birthdays"], queryFn: api.birthdays });
+  const [name, setName] = useState("");
+  const [date, setDate] = useState("");
+  const parsed = parseBirthday(date);
+  const refresh = () => qc.invalidateQueries({ queryKey: ["birthdays"] });
+  const add = useMutation({
+    mutationFn: () => api.createBirthday({ name: name.trim(), ...parsed! }),
+    onSuccess: () => {
+      setName("");
+      setDate("");
+    },
+    onSettled: refresh,
+  });
+  const remove = useMutation({ mutationFn: (id: string) => api.deleteBirthday(id), onSettled: refresh });
+
+  const today = startOfDay(new Date());
+  const upcoming = birthdaysInRange(birthdays.data ?? [], today, addDays(today, 366));
+  const seen = new Set<string>();
+  const list = upcoming.filter((o) => (seen.has(o.birthday.id) ? false : (seen.add(o.birthday.id), true)));
+
+  return (
+    <Sheet eyebrow="Geburtstage & Jahrestage" title="Nicht mehr vergessen 🎂" onClose={onClose}>
+      <Text style={s.seriesHint}>Erscheinen im Kalender und auf „Heute“. In der App gibt es eine Woche vorher eine Erinnerung.</Text>
+      {list.map((o) => {
+        const days = Math.round((o.date.getTime() - today.getTime()) / 86_400_000);
+        return (
+          <View key={o.birthday.id} style={s.bdayRow}>
+            <View style={{ flex: 1 }}>
+              <Text style={s.eventTitle}>{o.birthday.name}</Text>
+              <Text style={s.eventNotes}>
+                {o.date.getDate()}. {MONTHS[o.date.getMonth()]}
+                {o.age ? ` · wird ${o.age}` : ""} · {days === 0 ? "heute! 🎉" : days === 1 ? "morgen" : `in ${days} Tagen`}
+              </Text>
+            </View>
+            <Pressable
+              hitSlop={8}
+              accessibilityLabel={`${o.birthday.name} löschen`}
+              onPress={() => confirmAction("Geburtstag löschen?", `${o.birthday.name} wird aus dem Kalender entfernt.`, "Löschen", () => remove.mutate(o.birthday.id))}
+            >
+              <Text style={{ color: c.textFaint, fontSize: 16 }}>✕</Text>
+            </Pressable>
+          </View>
+        );
+      })}
+      <Label>Neuer Geburtstag</Label>
+      <Input value={name} onChangeText={setName} placeholder="Name, z. B. Oma Gerda" maxLength={60} />
+      <Input value={date} onChangeText={setDate} placeholder="Datum, z. B. 13.3.1946 (Jahr optional)" keyboardType="numbers-and-punctuation" maxLength={10} />
+      {date && !parsed ? <Text style={{ color: c.danger }}>Bitte als Tag.Monat eingeben, z. B. 13.3. oder 13.3.1946</Text> : null}
+      <ErrorText error={add.error} />
+      <Button label="Hinzufügen" onPress={() => add.mutate()} disabled={!name.trim() || !parsed} loading={add.isPending} />
+      <Button variant="ghost" label="Fertig" onPress={onClose} />
+    </Sheet>
+  );
+}
+
 const s = StyleSheet.create({
   nav: { flexDirection: "row", gap: 6, paddingHorizontal: theme.spacing(5), marginBottom: theme.spacing(3) },
   weekRow: { flexDirection: "row", marginBottom: 4 },
@@ -243,6 +351,11 @@ const s = StyleSheet.create({
   dayText: { color: c.text, fontSize: 15 },
   dots: { flexDirection: "row", gap: 3, marginTop: 3, height: 5 },
   dot: { width: 5, height: 5, borderRadius: 3 },
+  cake: { fontSize: 8, lineHeight: 6, marginTop: -1 },
+  birthday: { borderColor: c.goldDim, backgroundColor: c.goldDim, marginBottom: theme.spacing(2.5) },
+  repeatMark: { color: c.gold, fontSize: 14 },
+  seriesHint: { color: c.textMuted, fontSize: 13, lineHeight: 18 },
+  bdayRow: { flexDirection: "row", alignItems: "center", gap: theme.spacing(3), paddingVertical: 6, borderBottomWidth: 1, borderBottomColor: c.hairline },
   dayHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginTop: theme.spacing(5), marginBottom: theme.spacing(3) },
   dayTitle: { color: c.text, fontSize: 18, fontWeight: "600", flex: 1 },
   event: { flexDirection: "row", alignItems: "center", gap: theme.spacing(3.5) },

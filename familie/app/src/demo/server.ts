@@ -7,7 +7,7 @@
 
 export const DEMO_URL = "demo://familie";
 export const DEMO_CODE = "DEMO42";
-const STORAGE_KEY = "familie.demo.db.v1";
+const STORAGE_KEY = "familie.demo.db.v2";
 
 export class DemoError extends Error {
   constructor(
@@ -32,6 +32,9 @@ interface Db {
   tasks: Rec[];
   points: Rec[];
   rewards: Rec[];
+  recipes: Rec[];
+  meals: Rec[];
+  birthdays: Rec[];
 }
 
 const COLORS = ["#c9a86a", "#8fbf9f", "#8098c9", "#c98a8a", "#b48fc9", "#c9b86a", "#6ab8c9", "#c9906a"];
@@ -108,7 +111,7 @@ function svgPhoto(a: string, b: string, emoji: string, label: string): string {
 }
 
 function seed(): Db {
-  const d: Db = { families: [], members: [], events: [], lists: [], items: [], messages: [], locations: [], albums: [], photos: [], tasks: [], points: [], rewards: [] };
+  const d: Db = { families: [], members: [], events: [], lists: [], items: [], messages: [], locations: [], albums: [], photos: [], tasks: [], points: [], rewards: [], recipes: [], meals: [], birthdays: [] };
   const fam = { id: uid(), name: "Familie Muster", inviteCode: DEMO_CODE, createdAt: now() };
   d.families.push(fam);
   const mk = (name: string, i: number) => {
@@ -124,13 +127,45 @@ function seed(): Db {
 
   const ev = (title: string, by: Rec, start: string, extra: Rec = {}) =>
     d.events.push({ id: uid(), familyId: f, title, start, allDay: false, memberIds: [], createdBy: by.id, createdAt: now(), ...extra });
-  ev("Fußballtraining", mama, at(0, 17), { end: at(0, 18, 30), memberIds: [leon.id], notes: "Sportplatz Nord, Trinkflasche!" });
+  ev("Fußballtraining", mama, at(-14, 17), { end: at(-14, 18, 30), memberIds: [leon.id], notes: "Sportplatz Nord, Trinkflasche!", repeat: "weekly" });
   ev("Elternabend", papa, at(1, 19, 30), { memberIds: [mama.id, papa.id] });
-  ev("Oma Geburtstag 🎂", mama, at(3, 0), { allDay: true });
   ev("Zahnarzt", mama, at(5, 9, 15), { memberIds: [mia.id], notes: "Versichertenkarte mitnehmen" });
-  ev("Schwimmkurs", papa, at(-2, 15), { end: at(-2, 16), memberIds: [mia.id] });
+  ev("Schwimmkurs", papa, at(-2, 15), { end: at(-2, 16), memberIds: [mia.id], repeat: "weekly" });
   ev("Grillen bei Müllers", papa, at(6, 16));
-  ev("Fußballtraining", mama, at(7, 17), { end: at(7, 18, 30), memberIds: [leon.id] });
+  ev("Müllabfuhr 🗑️", mama, at(-3, 0), { allDay: true, repeat: "biweekly" });
+
+  // Geburtstage: Oma in 3 Tagen, die Familie verteilt uebers Jahr
+  const bday = (name: string, offsetDays: number, year?: number) => {
+    const x = new Date();
+    x.setDate(x.getDate() + offsetDays);
+    d.birthdays.push({ id: uid(), familyId: f, name, date: `${pad(x.getMonth() + 1)}-${pad(x.getDate())}`, year, createdAt: now() });
+  };
+  bday("Oma Gerda", 3, new Date().getFullYear() - 80);
+  bday("Mia", 45, new Date().getFullYear() - 8);
+  bday("Leon", 120, new Date().getFullYear() - 12);
+  bday("Papa", 200, new Date().getFullYear() - 44);
+  bday("Mama", 280, new Date().getFullYear() - 42);
+  bday("Hochzeitstag 💍", 9, new Date().getFullYear() - 15);
+
+  // Rezepte + Essensplan fuer diese Woche
+  const recipe = (name: string, ingredients: string[]) => {
+    const r = { id: uid(), familyId: f, name, ingredients, createdBy: mama.id, createdAt: now() };
+    d.recipes.push(r);
+    return r;
+  };
+  const bolo = recipe("Spaghetti Bolognese", ["Spaghetti", "Hackfleisch", "Passierte Tomaten", "Zwiebeln", "Möhren", "Parmesan"]);
+  const pfann = recipe("Pfannkuchen", ["Mehl", "Milch", "Eier", "Apfelmus"]);
+  const pizza = recipe("Pizza", ["Pizzateig 🍕", "Tomatensoße", "Mozzarella", "Salami", "Paprika"]);
+  const curry = recipe("Gemüsecurry mit Reis", ["Reis", "Kokosmilch", "Currypaste", "Brokkoli", "Paprika", "Kichererbsen"]);
+  recipe("Fischstäbchen mit Kartoffelpüree", ["Fischstäbchen", "Kartoffeln", "Milch", "Butter", "Erbsen"]);
+  recipe("Omas Kartoffelsuppe", ["Kartoffeln", "Möhren", "Lauch", "Würstchen", "Gemüsebrühe"]);
+  const meal = (offset: number, r: Rec | string, cook?: Rec) =>
+    d.meals.push({ id: uid(), familyId: f, date: day(offset), title: typeof r === "string" ? r : r.name, recipeId: typeof r === "string" ? undefined : r.id, cookId: cook?.id, createdBy: mama.id });
+  meal(0, pizza, mama);
+  meal(1, bolo, papa);
+  meal(2, curry);
+  meal(3, "Kaffee & Kuchen bei Oma 🎂");
+  meal(4, pfann, leon);
 
   const list = (name: string) => {
     const l = { id: uid(), familyId: f, name, createdAt: now() };
@@ -146,6 +181,7 @@ function seed(): Db {
   item(einkauf, "Bananen", mia);
   item(einkauf, "Käse", papa);
   item(einkauf, "Pizzateig 🍕", mama);
+  item(einkauf, "Mozzarella", mia);
   item(einkauf, "Tomaten", mama);
   item(einkauf, "Kaffee ☕", papa, true);
   item(drogerie, "Zahnpasta", mama);
@@ -288,6 +324,9 @@ route(
     for (const [title, cost] of [["Eis essen gehen", 50], ["30 Min. länger aufbleiben", 30], ["Film aussuchen", 20]] as const) {
       db.rewards.push({ id: uid(), familyId: fam.id, title, cost, createdAt: now() });
     }
+    for (const [name, ingredients] of [["Spaghetti Bolognese", ["Spaghetti", "Hackfleisch", "Passierte Tomaten", "Zwiebeln"]], ["Pfannkuchen", ["Mehl", "Milch", "Eier"]]] as const) {
+      db.recipes.push({ id: uid(), familyId: fam.id, name, ingredients: [...ingredients], createdBy: m.id, createdAt: now() });
+    }
     emit("members");
     return session(m);
   },
@@ -338,12 +377,18 @@ route("POST", "/family/invite-code", ({ me }) => {
 route("GET", "/events", ({ me, query }) => {
   const from = query.get("from"),
     to = query.get("to");
+  const repeating = (e: Rec) => e.repeat && e.repeat !== "none";
   return db.events
-    .filter((e) => e.familyId === me.familyId && (!from || (e.end ?? e.start) >= from) && (!to || e.start <= to))
+    .filter(
+      (e) =>
+        e.familyId === me.familyId &&
+        (!from || (repeating(e) ? !e.repeatUntil || e.repeatUntil >= from.slice(0, 10) : (e.end ?? e.start) >= from)) &&
+        (!to || e.start <= to),
+    )
     .sort((a, b) => a.start.localeCompare(b.start));
 });
 route("POST", "/events", ({ me, body }) => {
-  const e = { id: uid(), familyId: me.familyId, title: text(body.title, "title", 120)!, start: body.start, end: body.end, allDay: !!body.allDay, notes: body.notes, memberIds: body.memberIds ?? [], createdBy: me.id, createdAt: now() };
+  const e = { id: uid(), familyId: me.familyId, title: text(body.title, "title", 120)!, start: body.start, end: body.end, allDay: !!body.allDay, notes: body.notes, memberIds: body.memberIds ?? [], repeat: body.repeat ?? "none", repeatUntil: body.repeatUntil, createdBy: me.id, createdAt: now() };
   if (e.end && e.end < e.start) fail(400, "Ende liegt vor dem Beginn.");
   db.events.push(e);
   emit("events");
@@ -562,6 +607,82 @@ route("DELETE", "/photos/:id", ({ me, params }) => {
   find(db.photos, params[0]!, me.familyId, "Foto");
   db.photos = db.photos.filter((p) => p.id !== params[0]);
   emit("albums");
+});
+
+// Rezepte & Essensplan
+const norm = (x: string) => x.trim().toLowerCase().replace(/\s+/g, " ");
+const cleanIngredients = (v: unknown) => (Array.isArray(v) ? v.map((x) => String(x).trim()).filter(Boolean).slice(0, 60) : []);
+route("GET", "/recipes", ({ me }) => db.recipes.filter((r) => r.familyId === me.familyId).sort((a, b) => a.name.localeCompare(b.name, "de")));
+route("POST", "/recipes", ({ me, body }) => {
+  const r = { id: uid(), familyId: me.familyId, name: text(body.name, "name", 80)!, ingredients: cleanIngredients(body.ingredients), notes: text(body.notes, "notes", 2000, true), createdBy: me.id, createdAt: now() };
+  db.recipes.push(r);
+  emit("meals");
+  return r;
+});
+route("PATCH", "/recipes/:id", ({ me, body, params }) => {
+  const r = find(db.recipes, params[0]!, me.familyId, "Rezept");
+  if (body.name !== undefined) r.name = text(body.name, "name", 80);
+  if (body.ingredients !== undefined) r.ingredients = cleanIngredients(body.ingredients);
+  if (body.notes !== undefined) r.notes = text(body.notes, "notes", 2000, true);
+  for (const m of db.meals) if (m.recipeId === r.id) m.title = r.name;
+  emit("meals");
+  return r;
+});
+route("DELETE", "/recipes/:id", ({ me, params }) => {
+  find(db.recipes, params[0]!, me.familyId, "Rezept");
+  db.recipes = db.recipes.filter((r) => r.id !== params[0]);
+  for (const m of db.meals) if (m.recipeId === params[0]) m.recipeId = undefined;
+  emit("meals");
+});
+route("GET", "/meals", ({ me, query }) => {
+  const from = query.get("from"),
+    to = query.get("to");
+  return db.meals.filter((m) => m.familyId === me.familyId && (!from || m.date >= from) && (!to || m.date <= to)).sort((a, b) => a.date.localeCompare(b.date));
+});
+route("POST", "/meals/to-shopping", ({ me, body }) => {
+  const list = (body.listId ? db.lists.find((l) => l.id === body.listId && l.familyId === me.familyId) : db.lists.find((l) => l.familyId === me.familyId)) ?? fail(404, "Keine Einkaufsliste gefunden.");
+  const open = new Set(db.items.filter((i) => i.listId === list.id && !i.done).map((i) => norm(i.text)));
+  const added: string[] = [];
+  let skipped = 0;
+  for (const meal of db.meals.filter((m) => m.familyId === me.familyId && m.date >= body.from && m.date <= body.to)) {
+    for (const ing of db.recipes.find((r) => r.id === meal.recipeId)?.ingredients ?? []) {
+      if (open.has(norm(ing))) {
+        skipped++;
+        continue;
+      }
+      open.add(norm(ing));
+      added.push(ing);
+      db.items.push({ id: uid(), familyId: me.familyId, listId: list.id, text: ing, done: false, addedBy: me.id, createdAt: now() });
+    }
+  }
+  if (added.length) emit("lists");
+  return { listId: list.id, listName: list.name, added, skipped };
+});
+route("PUT", "/meals/:date", ({ me, body, params }) => {
+  const recipe = body.recipeId ? find(db.recipes, body.recipeId, me.familyId, "Rezept") : undefined;
+  const m = { id: uid(), familyId: me.familyId, date: params[0]!, title: recipe?.name ?? text(body.title, "title", 80)!, recipeId: recipe?.id, cookId: body.cookId || undefined, createdBy: me.id };
+  db.meals = db.meals.filter((x) => !(x.familyId === me.familyId && x.date === m.date)).concat(m);
+  emit("meals");
+  return m;
+});
+route("DELETE", "/meals/:date", ({ me, params }) => {
+  db.meals = db.meals.filter((x) => !(x.familyId === me.familyId && x.date === params[0]));
+  emit("meals");
+});
+
+// Geburtstage
+route("GET", "/birthdays", ({ me }) => db.birthdays.filter((b) => b.familyId === me.familyId).sort((a, b) => a.date.localeCompare(b.date)));
+route("POST", "/birthdays", ({ me, body }) => {
+  if (!/^\d{2}-\d{2}$/.test(String(body.date))) fail(400, "Datum ungültig.");
+  const b = { id: uid(), familyId: me.familyId, name: text(body.name, "name", 60)!, date: body.date, year: body.year || undefined, createdAt: now() };
+  db.birthdays.push(b);
+  emit("birthdays");
+  return b;
+});
+route("DELETE", "/birthdays/:id", ({ me, params }) => {
+  find(db.birthdays, params[0]!, me.familyId, "Geburtstag");
+  db.birthdays = db.birthdays.filter((b) => b.id !== params[0]);
+  emit("birthdays");
 });
 
 /** Bild-URL eines Demo-Fotos (Data-URL, kein Server noetig). */

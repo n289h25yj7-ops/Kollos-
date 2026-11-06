@@ -74,8 +74,8 @@ export function FamilyScreen({ onClose }: { onClose: () => void }) {
             {Platform.OS !== "web" ? (
               <View style={s.switchRow}>
                 <View style={{ flex: 1 }}>
-                  <Text style={s.name}>Termin-Erinnerungen</Text>
-                  <Text style={s.hint2}>30 Min. vorher, ganztägige um 8 Uhr</Text>
+                  <Text style={s.name}>Termin- & Geburtstags-Erinnerungen</Text>
+                  <Text style={s.hint2}>Termine 30 Min. vorher, Geburtstage eine Woche vorher</Text>
                 </View>
                 <Switch value={notif.reminders} onValueChange={notif.setReminders} trackColor={{ true: c.gold, false: c.surface3 }} thumbColor={c.text} />
               </View>

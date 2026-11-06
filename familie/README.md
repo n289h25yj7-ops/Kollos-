@@ -1,13 +1,18 @@
 # Familie – die App für eure Familie
 
-Eine private App nur für eure Familie: **geteilter Kalender**, **Einkaufslisten**,
+Eine private App nur für eure Familie: **Tagesüberblick „Heute“**, **geteilter Kalender**
+mit Serien und Geburtstagen, **Essensplan**, **Einkaufslisten**,
 **Aufgaben mit Punkten & Belohnungen**, **Familien-Chat**, **Fotoalben** und eine
 **Familienkarte**. Alles wird **in Echtzeit** synchronisiert, mit
 **Push-Benachrichtigungen** auf dem Handy.
 
-| Kalender | Einkauf | Aufgaben | Punkte |
+| Heute | Kalender | Essensplan | Einkauf |
 | --- | --- | --- | --- |
-| ![Kalender](screenshots/kalender.png) | ![Einkauf](screenshots/einkauf.png) | ![Aufgaben](screenshots/aufgaben.png) | ![Punkte](screenshots/punkte.png) |
+| ![Heute](screenshots/heute.png) | ![Kalender](screenshots/kalender.png) | ![Essensplan](screenshots/essensplan.png) | ![Einkauf](screenshots/einkauf.png) |
+
+| Aufgaben | Punkte |
+| --- | --- |
+| ![Aufgaben](screenshots/aufgaben.png) | ![Punkte](screenshots/punkte.png) |
 
 | Chat | Fotoalbum | Foto-Vollbild | Karte |
 | --- | --- | --- | --- |
@@ -25,8 +30,21 @@ Eine private App nur für eure Familie: **geteilter Kalender**, **Einkaufslisten
   **Einladungscode** zum Weitergeben. Es gibt kein Passwort und keine E-Mail, jedes
   Gerät bekommt einen eigenen geheimen Schlüssel. Zu den Einstellungen kommst du über
   deinen **Avatar oben rechts**.
+- **Heute (Startseite):** alles für den Tag auf einen Blick: anstehende Geburtstage,
+  heutige Termine, was es zu essen gibt (und wer kocht), deine fälligen Aufgaben zum
+  direkten Abhaken, die Einkaufsliste, wo alle sind, und die letzte Chat-Nachricht. Jeder
+  Bereich führt direkt zum passenden Tab, und von hier aus geht es auch zur Karte.
 - **Kalender:** Monatsansicht mit farbigen Punkten pro Person. Termine sind ganztägig
-  oder mit Uhrzeit, mit Notiz und „für wen?“.
+  oder mit Uhrzeit, mit Notiz und „für wen?“. Sie können sich **wiederholen**
+  (wöchentlich, alle 2 Wochen, monatlich, jährlich, markiert mit ↻). Die Vorkommen
+  berechnet die App in der lokalen Zeitzone, so bleibt „dienstags 17 Uhr“ auch nach der
+  Zeitumstellung 17 Uhr.
+- **Geburtstage & Jahrestage:** einmal eintragen (mit Geburtsjahr, wenn bekannt).
+  Sie erscheinen im Kalender (🎂) und als Hinweis auf „Heute“ („Oma Gerda wird 80 – in
+  3 Tagen“). Auf dem Handy gibt es eine Erinnerung eine Woche vorher und am Tag selbst.
+- **Essensplan:** im Einkaufs-Tab. Pro Tag ein Gericht aus euren Rezepten (oder frei
+  eingetragen) und wer kocht. **„Zutaten auf die Einkaufsliste“** überträgt alle Zutaten
+  der geplanten Gerichte ab heute, Doppeltes kommt nicht noch einmal drauf.
 - **Einkaufslisten:** mehrere Listen, abhaken, „Erledigte entfernen“, Zähler am Tab.
 - **Aufgaben & Ämtchen:** einmalig, täglich oder wöchentlich, für eine Person oder für
   jeden, mit Fälligkeit und Punkten (★ 5–50). Wiederkehrende Aufgaben rücken nach dem
@@ -135,7 +153,9 @@ bauen (`npx eas-cli build --profile preview`).
 | Bereich    | Routen |
 | ---------- | ------ |
 | Familie    | `POST /families`, `POST /families/join`, `GET/PATCH/DELETE /me`, `POST/DELETE /me/push-token`, `POST /family/invite-code` |
-| Kalender   | `GET /events?from&to`, `POST /events`, `PATCH/DELETE /events/:id` |
+| Kalender   | `GET /events?from&to`, `POST /events`, `PATCH/DELETE /events/:id` (mit `repeat`, `repeatUntil`) |
+| Geburtstage| `GET/POST /birthdays`, `PATCH/DELETE /birthdays/:id` |
+| Essen      | `GET/POST /recipes`, `PATCH/DELETE /recipes/:id`, `GET /meals?from&to`, `PUT/DELETE /meals/:date`, `POST /meals/to-shopping` |
 | Einkauf    | `GET/POST /lists`, `PATCH/DELETE /lists/:id`, `POST /lists/:id/items`, `POST /lists/:id/clear-done`, `PATCH/DELETE /items/:id` |
 | Aufgaben   | `GET/POST /tasks`, `PATCH/DELETE /tasks/:id`, `POST /tasks/:id/complete`, `POST /tasks/:id/uncomplete` |
 | Punkte     | `GET /points`, `GET/POST /rewards`, `DELETE /rewards/:id`, `POST /rewards/:id/redeem` |
@@ -146,6 +166,6 @@ bauen (`npx eas-cli build --profile preview`).
 ## Ideen für später
 
 - Standort im Hintergrund und „Angekommen zuhause“-Hinweise (braucht eine eigene App-Version)
-- Wiederkehrende Termine, Geburtstage, Essensplan
+- „Bin gleich da“ mit Ankunftszeit, Abstimmungen im Chat, Familien-Tresor, Kinder-Modus
 - Fotos direkt im Chat teilen, Videos im Album
 - Datenbank (SQLite) für große Familien bzw. viele Fotos

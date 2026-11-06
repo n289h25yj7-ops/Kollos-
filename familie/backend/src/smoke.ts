@@ -155,8 +155,43 @@ await call("DELETE", `/albums/${album.data.id}`, mama);
 assert.equal((await fetch(`${base}/photos/${up.data.id}/file?token=${mama}`)).status, 404);
 console.log("✓ Fotoalben");
 
+// Essensplan -> Einkaufsliste (ohne Doppelte)
+const recipes = await call("GET", "/recipes", mama);
+assert.equal(recipes.data.length, 5, "Start-Rezepte");
+const pancakes = recipes.data.find((r: { name: string }) => r.name === "Pfannkuchen");
+const curry = await call("POST", "/recipes", mama, { name: "Linsensuppe", ingredients: ["Linsen", "Milch", " Möhren "] });
+assert.equal(curry.status, 201);
+assert.equal((await call("PUT", "/meals/2026-11-09", mama, { recipeId: pancakes.id, cookId: maxId })).data.title, "Pfannkuchen");
+await call("PUT", "/meals/2026-11-10", max, { recipeId: curry.data.id });
+await call("PUT", "/meals/2026-11-11", max, { title: "Reste essen" });
+await call("PUT", "/meals/2026-11-11", max, { title: "Döner 🥙" });
+assert.equal((await call("GET", "/meals?from=2026-11-09&to=2026-11-15", mama)).data.length, 3, "ein Gericht pro Tag");
+await call("POST", `/lists/${listId}/items`, max, { text: "milch" });
+const toShop = await call("POST", "/meals/to-shopping", mama, { from: "2026-11-09", to: "2026-11-15" });
+assert.deepEqual(toShop.data.added, ["Mehl", "Eier", "Apfelmus", "Linsen", "Möhren"]);
+assert.equal(toShop.data.skipped, 2, "Milch stand schon drauf, und doppelt im Plan");
+assert.equal((await call("POST", "/meals/to-shopping", mama, { from: "2026-11-09", to: "2026-11-15" })).data.added.length, 0);
+console.log("✓ Essensplan & Einkaufsliste");
+
+// Geburtstage
+assert.equal((await call("POST", "/birthdays", mama, { name: "Oma Gerda", date: "13-01" })).status, 400);
+assert.equal((await call("POST", "/birthdays", mama, { name: "Oma Gerda", date: "11-09", year: 1946 })).status, 201);
+assert.equal((await call("POST", "/birthdays", mama, { name: "Schaltjahr-Kind", date: "02-29" })).status, 201);
+assert.equal((await call("GET", "/birthdays", max)).data[0].name, "Schaltjahr-Kind");
+console.log("✓ Geburtstage");
+
+// Wiederkehrende Termine: Serie aus dem Oktober taucht im November-Zeitraum auf
+const series = await call("POST", "/events", mama, { title: "Training", start: "2026-10-06T16:00:00.000Z", repeat: "weekly" });
+assert.equal(series.data.repeat, "weekly");
+assert.equal((await call("POST", "/events", mama, { title: "x", start: "2026-10-06T16:00:00.000Z", repeat: "taeglich" })).status, 400);
+const novEvents = await call("GET", "/events?from=2026-11-01T00:00:00Z&to=2026-11-30T23:59:59Z", max);
+assert.ok(novEvents.data.some((e: { id: string }) => e.id === series.data.id));
+await call("PATCH", `/events/${series.data.id}`, mama, { repeatUntil: "2026-10-31" });
+assert.ok(!(await call("GET", "/events?from=2026-11-01T00:00:00Z&to=2026-11-30T23:59:59Z", max)).data.some((e: { id: string }) => e.id === series.data.id));
+console.log("✓ Wiederkehrende Termine");
+
 await new Promise((r) => setTimeout(r, 100));
-for (const topic of ["lists", "events", "messages", "locations", "tasks", "albums"]) {
+for (const topic of ["lists", "events", "messages", "locations", "tasks", "albums", "meals", "birthdays"]) {
   assert.ok(received.includes(topic), `Echtzeit-Hinweis "${topic}" fehlt`);
 }
 console.log("Echtzeit-Hinweise:", [...new Set(received)].join(", "));

@@ -20,6 +20,9 @@ const empty = (): Database => ({
   tasks: [],
   points: [],
   rewards: [],
+  recipes: [],
+  meals: [],
+  birthdays: [],
 });
 
 export class Store {

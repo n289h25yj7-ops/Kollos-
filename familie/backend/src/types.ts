@@ -34,7 +34,45 @@ export interface CalendarEvent {
   notes?: string;
   /** Fuer wen ist der Termin? Leer = ganze Familie. */
   memberIds: string[];
+  /** Wiederholung; die einzelnen Vorkommen berechnet die App (in ihrer Zeitzone). */
+  repeat?: EventRepeat;
+  /** Letzter Tag der Serie (YYYY-MM-DD), optional. */
+  repeatUntil?: string;
   createdBy: string;
+  createdAt: string;
+}
+
+export type EventRepeat = "none" | "weekly" | "biweekly" | "monthly" | "yearly";
+
+export interface Recipe {
+  id: string;
+  familyId: string;
+  name: string;
+  ingredients: string[];
+  notes?: string;
+  createdBy: string;
+  createdAt: string;
+}
+
+/** Ein Gericht im Essensplan – eins pro Tag. */
+export interface Meal {
+  id: string;
+  familyId: string;
+  date: string;
+  title: string;
+  recipeId?: string;
+  cookId?: string;
+  createdBy: string;
+}
+
+export interface Birthday {
+  id: string;
+  familyId: string;
+  name: string;
+  /** Monat und Tag (MM-DD) */
+  date: string;
+  /** Geburtsjahr, optional – dann zeigt die App das Alter. */
+  year?: number;
   createdAt: string;
 }
 
@@ -145,7 +183,10 @@ export interface Database {
   tasks: Task[];
   points: PointsEntry[];
   rewards: Reward[];
+  recipes: Recipe[];
+  meals: Meal[];
+  birthdays: Birthday[];
 }
 
 /** Themen, zu denen der Server Echtzeit-Hinweise verschickt. */
-export type Topic = "members" | "events" | "lists" | "messages" | "locations" | "albums" | "tasks";
+export type Topic = "members" | "events" | "lists" | "messages" | "locations" | "albums" | "tasks" | "meals" | "birthdays";

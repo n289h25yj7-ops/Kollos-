@@ -6,11 +6,26 @@ import { theme } from "../theme";
 import type { ShoppingList } from "../types";
 import { Button, Card, Chip, Empty, ErrorText, Input, ScreenHeader } from "../components/ui";
 import { confirmAction } from "../components/confirm";
+import { MealPlan } from "./MealPlan";
 
 const c = theme.colors;
 
 
 export function ShoppingScreen() {
+  const [view, setView] = useState<"lists" | "meals">("lists");
+  return (
+    <View style={{ flex: 1 }}>
+      <ScreenHeader eyebrow="Einkauf & Essen" title={view === "lists" ? "Einkaufslisten" : "Essensplan"} />
+      <View style={s.segment}>
+        <Chip label="☰ Listen" active={view === "lists"} onPress={() => setView("lists")} />
+        <Chip label="🍽️ Essensplan" active={view === "meals"} onPress={() => setView("meals")} />
+      </View>
+      {view === "lists" ? <Lists /> : <MealPlan />}
+    </View>
+  );
+}
+
+function Lists() {
   const { api, memberById } = useSession();
   const qc = useQueryClient();
   const lists = useQuery({ queryKey: ["lists"], queryFn: api.lists });
@@ -71,7 +86,6 @@ export function ShoppingScreen() {
 
   return (
     <View style={{ flex: 1 }}>
-      <ScreenHeader eyebrow="Einkauf" title={active?.name ?? "Listen"} />
       <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flexGrow: 0 }} contentContainerStyle={s.tabs}>
         {all.map((l) => (
           <Chip key={l.id} label={`${l.name} · ${l.items.filter((i) => !i.done).length}`} active={l.id === active?.id} onPress={() => setActiveId(l.id)} />
@@ -148,6 +162,7 @@ function ItemRow({ text, by, done, onToggle, onDelete }: { text: string; by?: st
 }
 
 const s = StyleSheet.create({
+  segment: { flexDirection: "row", gap: 8, paddingHorizontal: theme.spacing(4), paddingBottom: theme.spacing(3) },
   tabs: { paddingHorizontal: theme.spacing(4), gap: 8, paddingBottom: theme.spacing(3) },
   addRow: { flexDirection: "row", alignItems: "center", gap: theme.spacing(2), paddingHorizontal: theme.spacing(4), paddingBottom: theme.spacing(2) },
   item: { flexDirection: "row", alignItems: "center", paddingVertical: theme.spacing(3) },

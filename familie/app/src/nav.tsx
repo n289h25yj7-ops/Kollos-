@@ -1,6 +1,6 @@
 import { createContext, useContext } from "react";
 
-export type Tab = "calendar" | "shopping" | "tasks" | "chat" | "photos" | "map";
+export type Tab = "today" | "calendar" | "shopping" | "tasks" | "chat" | "photos" | "map";
 
 export interface Nav {
   tab: Tab;
@@ -8,5 +8,5 @@ export interface Nav {
   openFamily: () => void;
 }
 
-export const NavContext = createContext<Nav>({ tab: "calendar", setTab: () => {}, openFamily: () => {} });
+export const NavContext = createContext<Nav>({ tab: "today", setTab: () => {}, openFamily: () => {} });
 export const useNav = () => useContext(NavContext);

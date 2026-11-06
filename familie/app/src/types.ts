@@ -30,8 +30,39 @@ export interface CalendarEvent {
   allDay: boolean;
   notes?: string;
   memberIds: string[];
+  repeat?: EventRepeat;
+  repeatUntil?: string;
   createdBy: string;
   createdAt: string;
+  /** Nur bei berechneten Vorkommen einer Serie: Beginn/Ende des ersten Termins. */
+  seriesStart?: string;
+  seriesEnd?: string;
+}
+
+export type EventRepeat = "none" | "weekly" | "biweekly" | "monthly" | "yearly";
+
+export interface Recipe {
+  id: string;
+  name: string;
+  ingredients: string[];
+  notes?: string;
+  createdBy: string;
+}
+
+export interface Meal {
+  id: string;
+  date: string;
+  title: string;
+  recipeId?: string;
+  cookId?: string;
+  createdBy: string;
+}
+
+export interface Birthday {
+  id: string;
+  name: string;
+  date: string;
+  year?: number;
 }
 
 export interface ShoppingItem {
@@ -65,7 +96,7 @@ export interface MemberLocation {
   updatedAt: string;
 }
 
-export type Topic = "members" | "events" | "lists" | "messages" | "locations" | "albums" | "tasks";
+export type Topic = "members" | "events" | "lists" | "messages" | "locations" | "albums" | "tasks" | "meals" | "birthdays";
 
 export interface Album {
   id: string;

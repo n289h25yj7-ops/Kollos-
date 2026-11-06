@@ -7,6 +7,7 @@ import { NavContext, type Tab } from "./src/nav";
 import { NotificationsProvider } from "./src/notifications";
 import { LocationSharingProvider } from "./src/locationSharing";
 import { Onboarding } from "./src/screens/Onboarding";
+import { TodayScreen } from "./src/screens/TodayScreen";
 import { CalendarScreen } from "./src/screens/CalendarScreen";
 import { ShoppingScreen } from "./src/screens/ShoppingScreen";
 import { TasksScreen } from "./src/screens/TasksScreen";
@@ -24,13 +25,15 @@ const queryClient = new QueryClient({
 });
 
 const TABS: { id: Tab; label: string; icon: string }[] = [
+  { id: "today", label: "Heute", icon: "☀" },
   { id: "calendar", label: "Kalender", icon: "▦" },
   { id: "shopping", label: "Einkauf", icon: "☰" },
   { id: "tasks", label: "Aufgaben", icon: "✓" },
   { id: "chat", label: "Chat", icon: "✉" },
   { id: "photos", label: "Fotos", icon: "▣" },
-  { id: "map", label: "Karte", icon: "⌖" },
 ];
+/** Bildschirme ohne eigenen Tab (erreichbar ueber "Heute" bzw. Benachrichtigungen). */
+const EXTRA_SCREENS: Tab[] = ["map"];
 
 export default function App() {
   return (
@@ -47,11 +50,11 @@ export default function App() {
 }
 
 function Shell() {
-  const [tab, setTabState] = useState<Tab>("calendar");
+  const [tab, setTabState] = useState<Tab>("today");
   const [familyOpen, setFamilyOpen] = useState(false);
   const setTab = useCallback((t: Tab) => {
     setFamilyOpen(false);
-    setTabState(TABS.some((x) => x.id === t) ? t : "calendar");
+    setTabState(TABS.some((x) => x.id === t) || EXTRA_SCREENS.includes(t) ? t : "today");
   }, []);
   const nav = useMemo(() => ({ tab, setTab, openFamily: () => setFamilyOpen(true) }), [tab, setTab]);
 
@@ -65,6 +68,7 @@ function Shell() {
                 <FamilyScreen onClose={() => setFamilyOpen(false)} />
               ) : (
                 <>
+                  {tab === "today" ? <TodayScreen /> : null}
                   {tab === "calendar" ? <CalendarScreen /> : null}
                   {tab === "shopping" ? <ShoppingScreen /> : null}
                   {tab === "tasks" ? <TasksScreen /> : null}

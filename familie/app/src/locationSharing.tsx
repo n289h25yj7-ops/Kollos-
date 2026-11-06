@@ -5,6 +5,9 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useSession } from "./session";
 import { load, save } from "./storage";
 import { IS_DEMO } from "./config";
+import { distanceKm } from "./format";
+import { ARRIVAL_RADIUS_KM } from "./travel";
+import type { ChatMessage, Place } from "./types";
 
 const SHARE_KEY = "familie.shareLocation";
 
@@ -20,15 +23,43 @@ export const useLocationSharing = () => useContext(Ctx);
 
 type Coords = { lat: number; lng: number; accuracy?: number };
 
+/** Demo: ein Spaziergang durch Berlin-Mitte statt echtem GPS. */
+let demoStep = 0;
+const demoPosition = (): Coords => ({ lat: 52.5145 + Math.sin(demoStep / 6) * 0.004, lng: 13.3501 + demoStep * 0.0008, accuracy: 15 });
+
+/** Aktuelle Position einmalig abfragen (fuer "Bin gleich da" und "Zuhause speichern"). */
+export async function getPositionOnce(): Promise<Coords> {
+  if (IS_DEMO) return demoPosition();
+  if (Platform.OS === "web") {
+    return new Promise((resolve, reject) =>
+      navigator.geolocation.getCurrentPosition(
+        (p) => resolve({ lat: p.coords.latitude, lng: p.coords.longitude, accuracy: p.coords.accuracy }),
+        () => reject(new Error("Standort nicht verfügbar. Bitte im Browser erlauben.")),
+        { enableHighAccuracy: false, timeout: 10_000, maximumAge: 60_000 },
+      ),
+    );
+  }
+  const perm = await Location.requestForegroundPermissionsAsync();
+  if (perm.status !== "granted") throw new Error("Ohne Standort-Berechtigung geht das leider nicht.");
+  const p = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+  return { lat: p.coords.latitude, lng: p.coords.longitude, accuracy: p.coords.accuracy ?? undefined };
+}
+
+/** Offene "Bin gleich da"-Meldungen dieser Person, die bei Ankunft automatisch abgeschlossen werden. */
+function openEtas(messages: ChatMessage[] | undefined, memberId: string) {
+  return (messages ?? []).filter((m) => m.memberId === memberId && m.eta && !m.eta.arrivedAt && !m.eta.replaced);
+}
+
 /**
  * Standort beobachten; liefert eine Stopp-Funktion. Im Web direkt ueber die
  * Browser-API, weil expo-location dort beim Abmelden einen Fehler wirft.
  */
 async function watch(onPos: (c: Coords) => void): Promise<() => void> {
   if (IS_DEMO) {
-    // Demo: ein Spaziergang durch Berlin-Mitte statt echtem GPS.
-    let i = 0;
-    const step = () => onPos({ lat: 52.5145 + Math.sin(i / 6) * 0.004, lng: 13.3501 + i++ * 0.0008, accuracy: 15 });
+    const step = () => {
+      demoStep++;
+      onPos(demoPosition());
+    };
     step();
     const t = setInterval(step, 25_000);
     return () => clearInterval(t);
@@ -43,9 +74,8 @@ async function watch(onPos: (c: Coords) => void): Promise<() => void> {
   }
   const first = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
   onPos({ lat: first.coords.latitude, lng: first.coords.longitude, accuracy: first.coords.accuracy ?? undefined });
-  const sub = await Location.watchPositionAsync(
-    { accuracy: Location.Accuracy.Balanced, timeInterval: 60_000, distanceInterval: 50 },
-    (p) => onPos({ lat: p.coords.latitude, lng: p.coords.longitude, accuracy: p.coords.accuracy ?? undefined }),
+  const sub = await Location.watchPositionAsync({ accuracy: Location.Accuracy.Balanced, timeInterval: 60_000, distanceInterval: 50 }, (p) =>
+    onPos({ lat: p.coords.latitude, lng: p.coords.longitude, accuracy: p.coords.accuracy ?? undefined }),
   );
   return () => sub.remove();
 }
@@ -56,7 +86,9 @@ async function watch(onPos: (c: Coords) => void): Promise<() => void> {
  * sofort auf dem Server.
  */
 export function LocationSharingProvider({ children }: { children: ReactNode }) {
-  const { api } = useSession();
+  const { api, session } = useSession();
+  const home: Place | undefined = session.family.home;
+  const memberId = session.member.id;
   const qc = useQueryClient();
   const [sharing, setSharingState] = useState<boolean | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -81,6 +113,20 @@ export function LocationSharingProvider({ children }: { children: ReactNode }) {
       setError(null);
       const s = await watch((c) => {
         // Nicht oefter als alle 20 s senden (Browser melden teils sehr haeufig).
+        // Ankunft erkennen: offene "Bin gleich da"-Meldung + nah genug am Zuhause.
+        if (home && distanceKm(c, home) <= ARRIVAL_RADIUS_KM) {
+          const finish = (msgs: ChatMessage[] | undefined) => {
+            for (const m of openEtas(msgs, memberId)) {
+              api.markArrived(m.id).then(
+                () => qc.invalidateQueries({ queryKey: ["messages"] }),
+                () => undefined,
+              );
+            }
+          };
+          const cached = qc.getQueryData<ChatMessage[]>(["messages"]);
+          if (cached) finish(cached);
+          else api.messages().then(finish, () => undefined);
+        }
         if (Date.now() - last < 20_000) return;
         last = Date.now();
         api
@@ -95,7 +141,7 @@ export function LocationSharingProvider({ children }: { children: ReactNode }) {
       cancelled = true;
       stop?.();
     };
-  }, [sharing, api, qc]);
+  }, [sharing, api, qc, home, memberId]);
 
   const setSharing = useCallback(
     async (on: boolean) => {

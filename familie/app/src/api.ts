@@ -15,6 +15,7 @@ import type {
   ShoppingItem,
   ShoppingList,
   Task,
+  TravelMode,
 } from "./types";
 
 export class ApiError extends Error {
@@ -93,6 +94,13 @@ export function createApi(baseUrl: string, token: string) {
 
     messages: () => r<ChatMessage[]>("GET", "/messages?limit=200"),
     sendMessage: (text: string) => r<ChatMessage>("POST", "/messages", { text }),
+    createPoll: (question: string, options: string[], multi: boolean) => r<ChatMessage>("POST", "/polls", { question, options, multi }),
+    vote: (messageId: string, optionIds: string[]) => r<ChatMessage>("POST", `/messages/${messageId}/vote`, { optionIds }),
+    closePoll: (messageId: string) => r<ChatMessage>("POST", `/messages/${messageId}/close`),
+    sendEta: (mode: TravelMode, minutes: number, destination?: string) => r<ChatMessage>("POST", "/messages/eta", { mode, minutes, destination }),
+    markArrived: (messageId: string) => r<ChatMessage>("POST", `/messages/${messageId}/arrived`),
+    setHome: (lat: number, lng: number, label?: string) => r<Session["family"]>("PUT", "/family/home", { lat, lng, label }),
+    clearHome: () => r<void>("DELETE", "/family/home"),
 
     locations: () => r<MemberLocation[]>("GET", "/locations"),
     shareLocation: (lat: number, lng: number, accuracy?: number) =>

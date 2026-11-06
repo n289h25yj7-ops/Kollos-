@@ -7,7 +7,7 @@
 
 export const DEMO_URL = "demo://familie";
 export const DEMO_CODE = "DEMO42";
-const STORAGE_KEY = "familie.demo.db.v2";
+const STORAGE_KEY = "familie.demo.db.v3";
 
 export class DemoError extends Error {
   constructor(
@@ -112,7 +112,7 @@ function svgPhoto(a: string, b: string, emoji: string, label: string): string {
 
 function seed(): Db {
   const d: Db = { families: [], members: [], events: [], lists: [], items: [], messages: [], locations: [], albums: [], photos: [], tasks: [], points: [], rewards: [], recipes: [], meals: [], birthdays: [] };
-  const fam = { id: uid(), name: "Familie Muster", inviteCode: DEMO_CODE, createdAt: now() };
+  const fam = { id: uid(), name: "Familie Muster", inviteCode: DEMO_CODE, home: { lat: 52.5208, lng: 13.4094, label: "Zuhause" }, createdAt: now() };
   d.families.push(fam);
   const mk = (name: string, i: number) => {
     const m = { id: uid(), familyId: fam.id, name, color: COLORS[i]!, token: `demo-${name}-${uid()}`, createdAt: now() };
@@ -215,6 +215,20 @@ function seed(): Db {
   msg(leon, "Danke Papa!", 88);
   msg(mia, "Können wir heute Pizza machen? 🍕", 40);
   msg(mama, "Gute Idee – steht schon auf der Einkaufsliste 😉", 35);
+  const opt = (text: string) => ({ id: uid(), text });
+  const [zoo, bad, wald, home] = [opt("Zoo 🦒"), opt("Schwimmbad 🏊"), opt("Wald & Spielplatz 🌲"), opt("Zuhause chillen 🛋️")];
+  d.messages.push({
+    id: uid(), familyId: f, memberId: mama.id, text: "📊 Wohin am Sonntag?", kind: "poll",
+    poll: { question: "Wohin am Sonntag?", options: [zoo, bad, wald, home], multi: false, votes: { [papa.id]: [zoo.id], [leon.id]: [zoo.id], [mia.id]: [bad.id] }, closed: false },
+    createdAt: new Date(Date.now() - 25 * 60_000).toISOString(),
+  });
+  const etaAt = Date.now() - 18 * 60_000;
+  d.messages.push({
+    id: uid(), familyId: f, memberId: papa.id, text: "🚗 Bin in ca. 15 Min. zuhause", kind: "eta",
+    eta: { mode: "car", destination: "zuhause", minutes: 15, arriveAt: new Date(etaAt + 15 * 60_000).toISOString(), arrivedAt: new Date(etaAt + 14 * 60_000).toISOString() },
+    createdAt: new Date(etaAt).toISOString(),
+  });
+  msg(leon, "Bin noch beim Training, komme gleich ⚽", 2);
 
   const album = (name: string, by: Rec, photos: [string, string, string, string, string?][]) => {
     const a = { id: uid(), familyId: f, name, createdBy: by.id, createdAt: now() };
@@ -607,6 +621,80 @@ route("DELETE", "/photos/:id", ({ me, params }) => {
   find(db.photos, params[0]!, me.familyId, "Foto");
   db.photos = db.photos.filter((p) => p.id !== params[0]);
   emit("albums");
+});
+
+// Zuhause, Abstimmungen, "Bin gleich da"
+route("PUT", "/family/home", ({ me, body }) => {
+  const fam = db.families.find((x) => x.id === me.familyId)!;
+  fam.home = { lat: Number(body.lat), lng: Number(body.lng), label: body.label || "Zuhause" };
+  emit("members");
+  return fam;
+});
+route("DELETE", "/family/home", ({ me }) => {
+  db.families.find((x) => x.id === me.familyId)!.home = undefined;
+  emit("members");
+});
+route("POST", "/polls", ({ me, body }) => {
+  const options = (Array.isArray(body.options) ? body.options : []).map((t: unknown) => String(t).trim()).filter(Boolean).map((text: string) => ({ id: uid(), text }));
+  if (options.length < 2 || options.length > 8) fail(400, "Eine Abstimmung braucht 2 bis 8 Antworten.");
+  const question = text(body.question, "question", 200)!;
+  const m = { id: uid(), familyId: me.familyId, memberId: me.id, text: `📊 ${question}`, kind: "poll", poll: { question, options, multi: !!body.multi, votes: {} as Record<string, string[]>, closed: false }, createdAt: now() };
+  db.messages.push(m);
+  emit("messages");
+  // Die Demo-Familie stimmt nach und nach ab.
+  db.members
+    .filter((x) => x.familyId === me.familyId && x.id !== me.id)
+    .forEach((x, i) => {
+      setTimeout(() => {
+        if (m.poll.closed) return;
+        m.poll.votes[x.id] = [options[Math.floor(Math.random() * options.length)]!.id];
+        emit("messages");
+      }, 1500 + i * 1300 + Math.random() * 800);
+    });
+  return m;
+});
+route("POST", "/messages/eta", ({ me, body }) => {
+  const icons: Record<string, string> = { walk: "🚶", bike: "🚲", car: "🚗", transit: "🚌" };
+  if (!icons[body.mode]) fail(400, "Verkehrsmittel fehlt.");
+  const minutes = Number(body.minutes) || fail(400, "Minuten fehlen.");
+  for (const old of db.messages) if (old.memberId === me.id && old.eta && !old.eta.arrivedAt) old.eta.replaced = true;
+  const destination = body.destination || "zuhause";
+  const m = { id: uid(), familyId: me.familyId, memberId: me.id, text: `${icons[body.mode]} Bin in ca. ${minutes} Min. ${destination}`, kind: "eta", eta: { mode: body.mode, destination, minutes, arriveAt: new Date(Date.now() + minutes * 60_000).toISOString() }, createdAt: now() };
+  db.messages.push(m);
+  emit("messages");
+  const mama = db.members.find((x) => x.familyId === me.familyId && x.name === "Mama" && x.id !== me.id);
+  if (mama) {
+    setTimeout(() => {
+      db.messages.push({ id: uid(), familyId: me.familyId, memberId: mama.id, text: "Super, dann warten wir mit dem Essen 🍽️", kind: "text", createdAt: now() });
+      emit("messages");
+    }, 2500);
+  }
+  return m;
+});
+route("POST", "/messages/:id/vote", ({ me, body, params }) => {
+  const m = find(db.messages, params[0]!, me.familyId, "Nachricht");
+  if (!m.poll) fail(400, "Das ist keine Abstimmung.");
+  if (m.poll.closed) fail(409, "Die Abstimmung ist beendet.");
+  const ids = (Array.isArray(body.optionIds) ? body.optionIds : []).filter((id: string) => m.poll.options.some((o: Rec) => o.id === id));
+  if (!m.poll.multi && ids.length > 1) fail(400, "Hier ist nur eine Antwort möglich.");
+  if (ids.length) m.poll.votes[me.id] = ids;
+  else delete m.poll.votes[me.id];
+  emit("messages");
+  return m;
+});
+route("POST", "/messages/:id/close", ({ me, params }) => {
+  const m = find(db.messages, params[0]!, me.familyId, "Nachricht");
+  if (m.memberId !== me.id) fail(403, "Nur wer gefragt hat, kann die Abstimmung beenden.");
+  m.poll.closed = true;
+  emit("messages");
+  return m;
+});
+route("POST", "/messages/:id/arrived", ({ me, params }) => {
+  const m = find(db.messages, params[0]!, me.familyId, "Nachricht");
+  if (m.memberId !== me.id) fail(403, "Nur die unterwegs ist, kann die Ankunft melden.");
+  m.eta.arrivedAt = m.eta.arrivedAt ?? now();
+  emit("messages");
+  return m;
 });
 
 // Rezepte & Essensplan

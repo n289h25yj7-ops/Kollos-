@@ -190,6 +190,40 @@ await call("PATCH", `/events/${series.data.id}`, mama, { repeatUntil: "2026-10-3
 assert.ok(!(await call("GET", "/events?from=2026-11-01T00:00:00Z&to=2026-11-30T23:59:59Z", max)).data.some((e: { id: string }) => e.id === series.data.id));
 console.log("✓ Wiederkehrende Termine");
 
+// Abstimmungen
+await call("POST", "/me/push-token", max, { token: "ExponentPushToken[max456]" });
+assert.equal((await call("POST", "/polls", mama, { question: "Wohin?", options: ["Zoo"] })).status, 400);
+const poll = await call("POST", "/polls", mama, { question: "Wohin am Sonntag?", options: ["Zoo", "Schwimmbad", "Wald"] });
+assert.equal(poll.status, 201);
+const [zoo, bad, wald] = poll.data.poll.options.map((o: { id: string }) => o.id);
+assert.equal((await call("POST", `/messages/${poll.data.id}/vote`, max, { optionIds: [zoo, bad] })).status, 400, "nur eine Antwort");
+await call("POST", `/messages/${poll.data.id}/vote`, max, { optionIds: [zoo] });
+await call("POST", `/messages/${poll.data.id}/vote`, mama, { optionIds: [wald] });
+await call("POST", `/messages/${poll.data.id}/vote`, mama, { optionIds: [zoo] });
+let pollNow = (await call("GET", "/messages", max)).data.find((x: { id: string }) => x.id === poll.data.id);
+assert.deepEqual(Object.values(pollNow.poll.votes), [[zoo], [zoo]]);
+assert.equal((await call("POST", `/messages/${poll.data.id}/close`, max)).status, 403);
+await call("POST", `/messages/${poll.data.id}/close`, mama);
+assert.equal((await call("POST", `/messages/${poll.data.id}/vote`, max, { optionIds: [bad] })).status, 409);
+assert.ok(pushed.some((p) => p.title === "📊 Mama fragt"));
+console.log("✓ Abstimmungen");
+
+// Bin gleich da + Zuhause
+assert.equal((await call("PUT", "/family/home", mama, { lat: 52.52, lng: 13.405 })).data.home.label, "Zuhause");
+assert.equal((await call("GET", "/me", max)).data.family.home.lat, 52.52);
+const eta1 = await call("POST", "/messages/eta", max, { mode: "bike", minutes: 12 });
+assert.equal(eta1.data.text, "🚲 Bin in ca. 12 Min. zuhause");
+const eta2 = await call("POST", "/messages/eta", max, { mode: "car", minutes: 5 });
+const msgsNow = (await call("GET", "/messages", mama)).data;
+assert.equal(msgsNow.find((x: { id: string }) => x.id === eta1.data.id).eta.replaced, true, "alte Ankunftszeit ersetzt");
+assert.equal((await call("POST", `/messages/${eta2.data.id}/arrived`, mama)).status, 403);
+pushed.length = 0;
+const arrived = await call("POST", `/messages/${eta2.data.id}/arrived`, max);
+assert.ok(arrived.data.eta.arrivedAt);
+assert.ok(pushed.some((p) => p.body === "Max ist zuhause angekommen"));
+assert.equal((await call("POST", "/messages/eta", max, { mode: "rakete", minutes: 5 })).status, 400);
+console.log("✓ Bin gleich da");
+
 await new Promise((r) => setTimeout(r, 100));
 for (const topic of ["lists", "events", "messages", "locations", "tasks", "albums", "meals", "birthdays"]) {
   assert.ok(received.includes(topic), `Echtzeit-Hinweis "${topic}" fehlt`);

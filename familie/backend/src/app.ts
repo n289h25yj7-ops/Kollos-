@@ -8,6 +8,7 @@ import { registerPhotos } from "./features/photos.js";
 import { registerTasks } from "./features/tasks.js";
 import { registerMeals, seedRecipes } from "./features/meals.js";
 import { registerBirthdays } from "./features/birthdays.js";
+import { registerChatExtras } from "./features/chatExtras.js";
 import { HttpError, day, isoDate, now, str } from "./http.js";
 import { isExpoPushToken, type PushSender } from "./push.js";
 import type { Store } from "./store.js";
@@ -392,7 +393,7 @@ export function createApp(store: Store, broadcast: Broadcast, options: AppOption
 
   app.post("/messages", auth, (req, res) => {
     const m = me(req);
-    const msg = { id: randomUUID(), familyId: m.familyId, memberId: m.id, text: str(req.body?.text, "text", { max: 2000 })!, createdAt: now() };
+    const msg = { id: randomUUID(), familyId: m.familyId, memberId: m.id, text: str(req.body?.text, "text", { max: 2000 })!, kind: "text" as const, createdAt: now() };
     db.messages.push(msg);
     if (db.messages.length > MAX_MESSAGES) db.messages.splice(0, db.messages.length - MAX_MESSAGES);
     changed(m.familyId, "messages");
@@ -434,6 +435,7 @@ export function createApp(store: Store, broadcast: Broadcast, options: AppOption
   registerPhotos(app, ctx);
   registerMeals(app, ctx);
   registerBirthdays(app, ctx);
+  registerChatExtras(app, ctx);
 
   // ---------- Web-App (optional, fuer den Online-Betrieb) ----------
   const webDir = options.webDir;

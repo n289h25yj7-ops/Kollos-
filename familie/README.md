@@ -52,7 +52,16 @@ mit Serien und Geburtstagen, **Essensplan**, **Einkaufslisten**,
   dann der oder die Zuständige.
 - **Punkte & Belohnungen:** Rangliste (Woche und gesamt), selbst definierte Belohnungen
   („Eis essen gehen – ★ 50“) und ein Verlauf. Wer zu wenig Punkte hat, kann nicht einlösen.
-- **Chat:** Familien-Gruppenchat mit Tagestrennern und Live-Anzeige.
+- **Chat:** Familien-Gruppenchat mit Tagestrennern und Live-Anzeige. Über **„+“** gibt es:
+  - **📊 Abstimmungen:** Frage und 2 bis 8 Antworten (optional Mehrfachauswahl), Ergebnisse
+    live als Balken mit den Avataren der Abstimmenden. Wer gefragt hat, kann beenden, die
+    Gewinner-Antwort bekommt einen 🏆.
+  - **🏠 Bin gleich da:** Verkehrsmittel wählen (zu Fuß, Rad, Auto, Bus & Bahn), die App
+    schätzt die Zeit bis nach Hause (oder du wählst 5–60 Min.). Im Chat und auf „Heute“
+    steht dann „Leon ist auf dem Heimweg – noch ca. 7 Min.“. Wer den Standort teilt, wird
+    **automatisch als angekommen gemeldet**, sobald er weniger als 150 m von zuhause
+    entfernt ist. Sonst gibt es einen Knopf „Bin angekommen“. Das Zuhause legt ihr einmal
+    in den Einstellungen fest.
 - **Fotoalben:** Alben anlegen, **mehrere Fotos auf einmal** hochladen (oder direkt mit
   der Kamera). Fotos werden vorher auf max. 1600 px verkleinert und als JPEG
   komprimiert, das spart Datenvolumen und entfernt die GPS-Daten aus den Fotos.
@@ -159,13 +168,15 @@ bauen (`npx eas-cli build --profile preview`).
 | Einkauf    | `GET/POST /lists`, `PATCH/DELETE /lists/:id`, `POST /lists/:id/items`, `POST /lists/:id/clear-done`, `PATCH/DELETE /items/:id` |
 | Aufgaben   | `GET/POST /tasks`, `PATCH/DELETE /tasks/:id`, `POST /tasks/:id/complete`, `POST /tasks/:id/uncomplete` |
 | Punkte     | `GET /points`, `GET/POST /rewards`, `DELETE /rewards/:id`, `POST /rewards/:id/redeem` |
-| Chat       | `GET /messages`, `POST /messages` |
+| Chat       | `GET /messages`, `POST /messages`, `POST /polls`, `POST /messages/:id/vote`, `POST /messages/:id/close`, `POST /messages/eta`, `POST /messages/:id/arrived` |
+| Zuhause    | `PUT/DELETE /family/home` |
 | Fotos      | `GET/POST /albums`, `PATCH/DELETE /albums/:id`, `GET/POST /albums/:id/photos`, `PATCH/DELETE /photos/:id`, `GET /photos/:id/file` |
 | Standort   | `GET /locations`, `PUT/DELETE /locations/me` |
 
 ## Ideen für später
 
 - Standort im Hintergrund und „Angekommen zuhause“-Hinweise (braucht eine eigene App-Version)
-- „Bin gleich da“ mit Ankunftszeit, Abstimmungen im Chat, Familien-Tresor, Kinder-Modus
+- Familien-Tresor, Kinder-Modus, Wochensieger bei den Aufgaben
+- Echte Routenzeiten (statt Luftlinien-Schätzung) über einen Routing-Dienst
 - Fotos direkt im Chat teilen, Videos im Album
 - Datenbank (SQLite) für große Familien bzw. viele Fotos

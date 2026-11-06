@@ -1,8 +1,15 @@
 /** Spiegel der Backend-Typen (familie/backend/src/types.ts). */
 
+export interface Place {
+  lat: number;
+  lng: number;
+  label: string;
+}
+
 export interface Family {
   id: string;
   name: string;
+  home?: Place;
   inviteCode: string;
   createdAt: string;
 }
@@ -81,10 +88,32 @@ export interface ShoppingList {
   items: ShoppingItem[];
 }
 
+export interface Poll {
+  question: string;
+  options: { id: string; text: string }[];
+  multi: boolean;
+  votes: Record<string, string[]>;
+  closed: boolean;
+}
+
+export type TravelMode = "walk" | "bike" | "car" | "transit";
+
+export interface Eta {
+  mode: TravelMode;
+  destination: string;
+  minutes: number;
+  arriveAt: string;
+  arrivedAt?: string;
+  replaced?: boolean;
+}
+
 export interface ChatMessage {
   id: string;
   memberId: string;
   text: string;
+  kind?: "text" | "poll" | "eta";
+  poll?: Poll;
+  eta?: Eta;
   createdAt: string;
 }
 

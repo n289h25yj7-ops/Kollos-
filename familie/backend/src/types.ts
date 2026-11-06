@@ -1,8 +1,16 @@
 /** Datenmodell der Familien-App. Alle Zeitangaben als ISO-Strings. */
 
+export interface Place {
+  lat: number;
+  lng: number;
+  label: string;
+}
+
 export interface Family {
   id: string;
   name: string;
+  /** Zuhause (fuer "Bin gleich da" und Ankunfts-Erkennung). */
+  home?: Place;
   /** Einladungscode, mit dem weitere Mitglieder beitreten. */
   inviteCode: string;
   createdAt: string;
@@ -93,11 +101,36 @@ export interface ShoppingItem {
   createdAt: string;
 }
 
+export interface Poll {
+  question: string;
+  options: { id: string; text: string }[];
+  multi: boolean;
+  /** memberId -> gewaehlte Options-IDs */
+  votes: Record<string, string[]>;
+  closed: boolean;
+}
+
+export type TravelMode = "walk" | "bike" | "car" | "transit";
+
+export interface Eta {
+  mode: TravelMode;
+  destination: string;
+  minutes: number;
+  arriveAt: string;
+  arrivedAt?: string;
+  /** Durch eine neuere Ankunftszeit derselben Person ersetzt. */
+  replaced?: boolean;
+}
+
 export interface ChatMessage {
   id: string;
   familyId: string;
   memberId: string;
+  /** Bei Abstimmungen/Ankunft eine lesbare Kurzfassung (fuer Vorschau & Push). */
   text: string;
+  kind?: "text" | "poll" | "eta";
+  poll?: Poll;
+  eta?: Eta;
   createdAt: string;
 }
 

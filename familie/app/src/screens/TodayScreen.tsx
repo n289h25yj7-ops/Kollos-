@@ -8,6 +8,7 @@ import type { Task } from "../types";
 import { Avatar, Card, ScreenHeader } from "../components/ui";
 import { addDays, ago, dayKey, longDate, startOfDay, time } from "../format";
 import { birthdayLabel, birthdaysInRange, expandEvents } from "../recurrence";
+import { MODES } from "../travel";
 
 const c = theme.colors;
 
@@ -70,6 +71,10 @@ export function TodayScreen() {
 
   const openItems = (lists.data ?? []).flatMap((l) => l.items.filter((i) => !i.done));
   const lastMessage = messages.data?.at(-1);
+  // Wer ist gerade auf dem Heimweg? (offene "Bin gleich da"-Meldungen der letzten 3 Stunden)
+  const onTheWay = (messages.data ?? []).filter(
+    (m) => m.eta && !m.eta.arrivedAt && !m.eta.replaced && Date.now() - new Date(m.createdAt).getTime() < 3 * 3_600_000,
+  );
   const locs = locations.data ?? [];
 
   const complete = useMutation({
@@ -93,6 +98,24 @@ export function TodayScreen() {
                 </Text>
               </View>
             </Card>
+          );
+        })}
+
+        {onTheWay.map((m) => {
+          const left = Math.round((new Date(m.eta!.arriveAt).getTime() - Date.now()) / 60_000);
+          const who = m.memberId === session.member.id ? "Du bist" : `${memberById(m.memberId)?.name ?? "?"} ist`;
+          return (
+            <Pressable key={m.id} onPress={go("chat")}>
+              <Card style={[s.banner, { backgroundColor: c.surface }]}>
+                <Text style={s.bannerIcon}>{MODES[m.eta!.mode].icon}</Text>
+                <View style={{ flex: 1 }}>
+                  <Text style={s.bannerTitle}>{who} auf dem Heimweg</Text>
+                  <Text style={s.meta}>
+                    {left > 0 ? `noch ca. ${left} Min. · gegen ${time(m.eta!.arriveAt)}` : "müsste gleich da sein"}
+                  </Text>
+                </View>
+              </Card>
+            </Pressable>
           );
         })}
 

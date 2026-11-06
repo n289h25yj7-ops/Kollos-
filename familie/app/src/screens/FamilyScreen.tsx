@@ -8,9 +8,10 @@ import { PUSH_LABEL, useNotifications } from "../notifications";
 import { confirmAction } from "../components/confirm";
 import { IS_DEMO } from "../config";
 import { resetDemo } from "../demo/server";
+import { getPositionOnce } from "../locationSharing";
+import { distanceKm, formatDistance } from "../format";
 
 const c = theme.colors;
-
 
 export function FamilyScreen({ onClose }: { onClose: () => void }) {
   const { api, session, members, signOut, serverUrl, live } = useSession();
@@ -21,6 +22,19 @@ export function FamilyScreen({ onClose }: { onClose: () => void }) {
 
   const rename = useMutation({ mutationFn: () => api.updateMe({ name: name.trim() }), onSuccess: (s) => qc.setQueryData(["me"], s) });
   const newCode = useMutation({ mutationFn: api.newInviteCode, onSuccess: () => qc.invalidateQueries({ queryKey: ["me"] }) });
+  const [homeInfo, setHomeInfo] = useState<string | null>(null);
+  const saveHome = useMutation({
+    mutationFn: async () => {
+      const p = await getPositionOnce();
+      return api.setHome(p.lat, p.lng, "Zuhause");
+    },
+    onSuccess: () => {
+      setHomeInfo("Gespeichert – euer Zuhause ist jetzt dein aktueller Standort.");
+      void qc.invalidateQueries({ queryKey: ["me"] });
+    },
+  });
+  const clearHome = useMutation({ mutationFn: api.clearHome, onSuccess: () => qc.invalidateQueries({ queryKey: ["me"] }) });
+  const home = session.family.home;
   const leave = useMutation({ mutationFn: api.leave, onSuccess: signOut });
 
   const invite = () =>
@@ -30,7 +44,12 @@ export function FamilyScreen({ onClose }: { onClose: () => void }) {
 
   return (
     <View style={{ flex: 1 }}>
-      <ScreenHeader eyebrow="Familie & Einstellungen" title={session.family.name} hideFamily right={<Button small variant="ghost" label="Fertig" onPress={onClose} />} />
+      <ScreenHeader
+        eyebrow="Familie & Einstellungen"
+        title={session.family.name}
+        hideFamily
+        right={<Button small variant="ghost" label="Fertig" onPress={onClose} />}
+      />
       <ScrollView contentContainerStyle={{ paddingHorizontal: theme.spacing(4), paddingBottom: theme.spacing(24), gap: theme.spacing(4) }}>
         <Card style={{ alignItems: "center", gap: theme.spacing(2), borderColor: c.goldDim }}>
           <Text style={s.label}>Einladungscode</Text>
@@ -45,7 +64,9 @@ export function FamilyScreen({ onClose }: { onClose: () => void }) {
               variant="ghost"
               label="Neuer Code"
               loading={newCode.isPending}
-              onPress={() => confirmAction("Neuen Code erzeugen?", "Der alte Code funktioniert danach nicht mehr.", "Erneuern", () => newCode.mutate())}
+              onPress={() =>
+                confirmAction("Neuen Code erzeugen?", "Der alte Code funktioniert danach nicht mehr.", "Erneuern", () => newCode.mutate())
+              }
             />
           </View>
         </Card>
@@ -63,8 +84,48 @@ export function FamilyScreen({ onClose }: { onClose: () => void }) {
 
         <View style={{ gap: theme.spacing(2) }}>
           <Input label="Mein Name" value={name} onChangeText={setName} maxLength={40} />
-          <Button small variant="ghost" label="Namen speichern" onPress={() => rename.mutate()} disabled={!name.trim() || name.trim() === session.member.name} loading={rename.isPending} />
+          <Button
+            small
+            variant="ghost"
+            label="Namen speichern"
+            onPress={() => rename.mutate()}
+            disabled={!name.trim() || name.trim() === session.member.name}
+            loading={rename.isPending}
+          />
           <ErrorText error={rename.error ?? newCode.error ?? leave.error} />
+        </View>
+
+        <View style={{ gap: theme.spacing(2) }}>
+          <Label>Zuhause</Label>
+          <Card style={{ gap: theme.spacing(3) }}>
+            <Text style={s.hint2}>
+              {home
+                ? `🏠 Gespeichert (${home.lat.toFixed(4)}, ${home.lng.toFixed(4)}). Für „Bin gleich da“ und die automatische Ankunftsmeldung.`
+                : "Noch nicht festgelegt. Am besten zuhause auf „Hier ist unser Zuhause“ tippen – dann kann die App Fahrzeiten schätzen und Ankünfte erkennen."}
+            </Text>
+            {homeInfo ? <Text style={[s.hint2, { color: c.sage }]}>{homeInfo}</Text> : null}
+            <ErrorText error={saveHome.error ?? clearHome.error} />
+            <View style={{ flexDirection: "row", gap: theme.spacing(2) }}>
+              <Button
+                small
+                label={home ? "Neu festlegen" : "Hier ist unser Zuhause"}
+                onPress={() => saveHome.mutate()}
+                loading={saveHome.isPending}
+              />
+              {home ? (
+                <Button
+                  small
+                  variant="ghost"
+                  label="Entfernen"
+                  onPress={() =>
+                    confirmAction("Zuhause entfernen?", "„Bin gleich da“ schätzt dann keine Fahrzeit mehr.", "Entfernen", () =>
+                      clearHome.mutate(),
+                    )
+                  }
+                />
+              ) : null}
+            </View>
+          </Card>
         </View>
 
         <View style={{ gap: theme.spacing(2) }}>
@@ -77,7 +138,12 @@ export function FamilyScreen({ onClose }: { onClose: () => void }) {
                   <Text style={s.name}>Termin- & Geburtstags-Erinnerungen</Text>
                   <Text style={s.hint2}>Termine 30 Min. vorher, Geburtstage eine Woche vorher</Text>
                 </View>
-                <Switch value={notif.reminders} onValueChange={notif.setReminders} trackColor={{ true: c.gold, false: c.surface3 }} thumbColor={c.text} />
+                <Switch
+                  value={notif.reminders}
+                  onValueChange={notif.setReminders}
+                  trackColor={{ true: c.gold, false: c.surface3 }}
+                  thumbColor={c.text}
+                />
               </View>
             ) : null}
           </Card>
@@ -88,20 +154,45 @@ export function FamilyScreen({ onClose }: { onClose: () => void }) {
         </Text>
 
         <View style={{ gap: theme.spacing(2) }}>
-          <Button variant="ghost" label="Auf diesem Gerät abmelden" onPress={() => confirmAction("Abmelden?", "Du kannst später mit dem Einladungscode wieder beitreten – allerdings als neues Mitglied.", "Abmelden", () => void signOut())} />
+          <Button
+            variant="ghost"
+            label="Auf diesem Gerät abmelden"
+            onPress={() =>
+              confirmAction(
+                "Abmelden?",
+                "Du kannst später mit dem Einladungscode wieder beitreten – allerdings als neues Mitglied.",
+                "Abmelden",
+                () => void signOut(),
+              )
+            }
+          />
           {IS_DEMO ? (
             <Button
               variant="ghost"
               label="Demo zurücksetzen"
               onPress={() =>
-                confirmAction("Demo zurücksetzen?", "Alle Änderungen gehen verloren, die Beispiel-Familie startet neu.", "Zurücksetzen", () => {
-                  resetDemo();
-                  void signOut();
-                })
+                confirmAction(
+                  "Demo zurücksetzen?",
+                  "Alle Änderungen gehen verloren, die Beispiel-Familie startet neu.",
+                  "Zurücksetzen",
+                  () => {
+                    resetDemo();
+                    void signOut();
+                  },
+                )
               }
             />
           ) : null}
-          <Button variant="danger" label="Familie verlassen" loading={leave.isPending} onPress={() => confirmAction("Familie verlassen?", "Du wirst aus der Familie entfernt und dein Standort gelöscht.", "Verlassen", () => leave.mutate())} />
+          <Button
+            variant="danger"
+            label="Familie verlassen"
+            loading={leave.isPending}
+            onPress={() =>
+              confirmAction("Familie verlassen?", "Du wirst aus der Familie entfernt und dein Standort gelöscht.", "Verlassen", () =>
+                leave.mutate(),
+              )
+            }
+          />
         </View>
       </ScrollView>
     </View>
